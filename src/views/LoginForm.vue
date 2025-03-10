@@ -1,9 +1,9 @@
 <template>
   <div class="portal-form">
-    <div class="form-header">
+    <!-- <div class="form-header">
       <h2 class="portal-title">欢迎回来</h2>
       <p class="portal-subtitle">请输入您的账号信息进行登录</p>
-    </div>
+    </div> -->
     
     <div class="form-body">
       <div class="form-group">
@@ -30,7 +30,7 @@
           <input 
             id="login-password" 
             v-model="password" 
-            type="password" 
+            :type="showPassword ? 'text' : 'password'" 
             placeholder="请输入密码"
           />
           <button 
@@ -67,7 +67,7 @@
         confirm-text="确定"
         @confirm="showErrorModal = false"
       />
-  <!-- <div class="social-login">
+      <div class="social-login">
         <p>或者使用以下方式登录</p>
         <div class="social-buttons">
           <button class="social-button">
@@ -80,13 +80,14 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#000000"/></svg>
           </button>
         </div>
-      </div> -->
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import httpClient from '../utils/ajax'
 import BaseModal from '../components/common/BaseModal.vue'
 
@@ -101,15 +102,16 @@ const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
 
-import { userService } from '@/api/UserService'
+import { userService } from '@/api/UserService.js'
+
+const router = useRouter()
 
 const handleLogin = async () => {
   const res = await userService.login(username.value, password.value)
   if (res.code === 200) {
     localStorage.setItem('token', res.data)
-    console.log('登录成功，token为 ', res.data)
+    router.push('/home')
   } else {
-    console.log('登录失败，message为 ', res.message)
     showErrorModal.value = true
     errorMessage.value = res.message
   }
