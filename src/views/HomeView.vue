@@ -4,7 +4,8 @@
     <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo-container">
-          <img :src="logo" alt="sync-pan Logo" class="logo" />
+          <img src="../assets/image/logo.svg" alt="sync-pan Logo" class="logo" />
+          <!-- <object data="../assets/image/logo.svg" type="image/svg+xml" class="logo" alt="sync-pan Logo"></object> -->
           <span v-show="!isSidebarCollapsed">Sync-Pan</span>
         </div>
         <button class="collapse-btn" @click="toggleSidebar">

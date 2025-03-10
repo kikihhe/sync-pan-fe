@@ -53,17 +53,17 @@ const router = createRouter({
           component: () => import('@/views/UserView.vue'),
         } ,
         {
-          path: 'file',
+          path: '/file',
           name: 'file',
-          component: () => import('@/views/FileView.vue'), 
+          component: () => import('@/views/MyFileView.vue'), 
         },
         {
-          path: 'transfer',
+          path: '/transfer',
           name: 'transfer',
           component: () => import('@/views/TransferView.vue'), 
         },
         {
-          path: 'device',
+          path: '/device',
           name: 'device',
           component: () => import('@/views/DeviceView.vue'), 
         }
