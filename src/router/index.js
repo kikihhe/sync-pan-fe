@@ -31,15 +31,27 @@ const router = createRouter({
         },
       ],
     },
-    {
-      path: '/user',
-      name: 'user',
-      component: () => import('@/views/UserView.vue'),
-    },
+    // {
+    //   path: '/user',
+    //   name: 'user',
+    //   component: UserView,
+    // },
     {
       path: '/settings',
       name: 'settings',
-      component: () => import('@/views/UserView.vue'),
+      component: () => import('@/views/SettingsView.vue'),
+      children: [
+        {
+          path: '/account',
+          name: 'settings-account',
+          component: () => import('@/views/AccountView.vue'),
+        },
+        {
+          path: '/secret',
+          name: 'settings-secret',
+          component: () => import('@/views/SecretView.vue'),
+        }
+      ]
     },
     // 主页，登录后的默认页面
     {
@@ -47,11 +59,11 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
       children: [
-        {
-          path: '/user',
-          name: 'user',
-          component: () => import('@/views/UserView.vue'),
-        } ,
+        // {
+        //   path: '/user',
+        //   name: 'user',
+        //   component: () => import('@/views/AccountView.vue'),
+        // } ,
         {
           path: '/file',
           name: 'file',

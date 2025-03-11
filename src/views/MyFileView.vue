@@ -45,8 +45,8 @@
       <div class="toolbar-right">
         <div class="filter-group">
           <select v-model="sortBy" @change="handleSort" class="filter-select">
-            <option value="modifiedTime">按修改时间排序</option>
             <option value="createdTime">按创建时间排序</option>
+            <option value="modifiedTime">按修改时间排序</option>
           </select>
           
           <select v-model="typeFilter" @change="handleTypeFilter" class="filter-select">
@@ -83,8 +83,8 @@
             </th>
             <th>名称</th>
             <th>大小</th>
-            <th>修改时间</th>
             <th>创建时间</th>
+            <th>修改时间</th>
             <th>类型</th>
             <th class="actions-cell">操作</th>
           </tr>
@@ -104,7 +104,9 @@
             </td>
             <td class="name-cell">
               <Folder v-if="item.type === 'folder'" class="item-icon" :size="16" @click="enterFolder(item)" />
-              <File v-else class="item-icon" :size="16" />
+              <File   v-else class="item-icon" :size="16" />
+              <!-- 调试用 -->
+              <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span>
               <span class="folder-name" :class="{ 'clickable': item.type === 'folder' }">{{ item.name }}</span>
             </td>
             <td>{{ formatSize(item.size) }}</td>
@@ -192,7 +194,7 @@ import { menuService } from '@/api/MenuService.js'
 
 // 状态
 const searchQuery = ref('')
-const sortBy = ref('modifiedTime')
+const sortBy = ref('createdTime')
 const typeFilter = ref('all')
 const selectedItems = ref([])
 const currentPage = ref(1)

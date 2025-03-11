@@ -4,7 +4,7 @@
     <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo-container">
-          <img src="../assets/image/logo.svg" alt="sync-pan Logo" class="logo" />
+          <img src="../assets/image/logo.svg" alt="Description of SVG" class="logo" />
           <!-- <object data="../assets/image/logo.svg" type="image/svg+xml" class="logo" alt="sync-pan Logo"></object> -->
           <span v-show="!isSidebarCollapsed">Sync-Pan</span>
         </div>
@@ -88,7 +88,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import logo from '@/assets/image/logo.svg';
+
 import defaultAvatar from '@/assets/image/default-avatar.svg';
 import { 
   ChevronLeft, 
@@ -436,5 +436,4 @@ onUnmounted(() => {
   }
 }
 </style>
-import logo from '@/assets/image/logo.svg';
-import defaultAvatar from '@/assets/image/default-avatar.svg';
+
