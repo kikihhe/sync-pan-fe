@@ -1,6 +1,6 @@
 import httpClient from '../utils/ajax'
 
-
+// 获取子目录列表
 export const getSubMenuList = async (params) => {
     // 直接使用传入的参数对象
     const res = await httpClient.post('/menu/getSubMenuList', {
@@ -15,6 +15,19 @@ export const getSubMenuList = async (params) => {
     return res;
 };
 
+// 添加目录
+export const addMenu = async (params) => {
+    return await httpClient.post('/menu/addMenu', params);
+}
+
+// 更新目录名称
+export const updateMenu = async (data) => {
+    return await httpClient.post("/menu/updateMenu", data)
+}
+  
+
 export const menuService = {
-    getSubMenuList
+    getSubMenuList,
+    addMenu,
+    updateMenu
 }

@@ -15,12 +15,10 @@ httpClient.interceptors.request.use(
   config => {
     // 从 localStorage 获取 token
     const token = localStorage.getItem('token')
-    console.log('token ',token)
     // 如果有 token，添加到请求头
     if (token) {
       config.headers['Authentication'] = `${token}`
     }
-    console.log('config ',config)
     return config
   },
   error => {

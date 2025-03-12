@@ -1,10 +1,9 @@
 <template>
   <div class="file-view">
-
-  <!-- 导航栏 -->
-  <div class="navigation-bar">
-      <button 
-        class="back-btn" 
+    <!-- 导航栏 -->
+    <div class="navigation-bar">
+      <button
+        class="back-btn"
         @click="navigateBack"
         :disabled="navigationHistory.length === 0"
       >
@@ -13,17 +12,18 @@
       </button>
       <div class="breadcrumb">
         <template v-for="(item, index) in currentPath" :key="index">
-          <span 
+          <span
             class="breadcrumb-item"
-            :class="{ 'clickable': index < currentPath.length - 1 }"
+            :class="{ clickable: index < currentPath.length - 1 }"
             @click="navigateToPath(index)"
           >
             {{ item.name }}
           </span>
-          <span 
-            v-if="index < currentPath.length - 1" 
+          <span
+            v-if="index < currentPath.length - 1"
             class="breadcrumb-separator"
-          >/</span>
+            >/</span
+          >
         </template>
       </div>
     </div>
@@ -33,36 +33,38 @@
       <div class="toolbar-left">
         <div class="search-box">
           <Search class="search-icon" :size="20" />
-          <input 
-            type="text" 
-            v-model="searchQuery" 
+          <input
+            type="text"
+            v-model="searchQuery"
             placeholder="搜索文件或文件夹..."
           />
         </div>
       </div>
-      
+
       <div class="toolbar-right">
         <div class="filter-group">
           <select v-model="sortBy" @change="handleSort" class="filter-select">
             <option value="createdTime">按创建时间排序</option>
             <option value="modifiedTime">按修改时间排序</option>
           </select>
-          
+
           <select v-model="desc" @change="handleSort" class="filter-select">
             <option value="desc">倒序</option>
             <option value="asc">正序</option>
           </select>
-          
-          <select v-model="typeFilter" @change="handleTypeFilter" class="filter-select">
+
+          <select
+            v-model="typeFilter"
+            @change="handleTypeFilter"
+            class="filter-select"
+          >
             <option value="all">全部</option>
             <option value="folder">只看文件夹</option>
             <option value="file">只看文件</option>
           </select>
         </div>
 
-        <button class="search-btn" @click="handleSearch">
-            搜索
-        </button>
+        <button class="search-btn" @click="handleSearch">搜索</button>
 
         <div class="action-group">
           <button class="upload-btn" @click="handleUploadFile">
@@ -83,8 +85,8 @@
         <thead>
           <tr>
             <th class="checkbox-cell">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 :checked="isAllSelected"
                 @change="toggleSelectAll"
               />
@@ -98,33 +100,53 @@
           </tr>
         </thead>
         <tbody @contextmenu.prevent="handleBlankRightClick">
-          <tr 
-            v-for="item in displayedItems" 
+          <tr
+            v-for="item in displayedItems"
             :key="item.id"
             @contextmenu.prevent="showContextMenu($event, item)"
           >
             <td class="checkbox-cell">
-              <input 
-                type="checkbox" 
-                v-model="selectedItems"
-                :value="item.id"
-              />
+              <input type="checkbox" v-model="selectedItems" :value="item.id" />
             </td>
-            <td  >
+            <td>
               <div class="name-cell">
-                <Folder v-if="item.type === 'folder'" class="item-icon" :size="16" @click="enterFolder(item)" />
-                <File   v-else class="item-icon" :size="16" />
+                <Folder
+                  v-if="item.type === 'folder'"
+                  class="item-icon"
+                  :size="16"
+                  @click="enterFolder(item)"
+                />
+                <File v-else class="item-icon" :size="16" />
                 <!-- 放在图标与文件名之间，拉开间隔 -->
-                <div style="width:10px;height:100%"></div>
-                <!-- 调试用 -->
-                <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span>
-                <span class="folder-name" :class="{ 'clickable': item.type === 'folder' }" @click="item.type === 'folder' && enterFolder(item)">{{ item.name }}</span>
+                <div style="width: 10px; height: 100%"></div>
+
+                <!-- 编辑状态和非编辑状态的显示切换 -->
+                <input
+                  v-if="item.isEditing"
+                  ref="editNameInput"
+                  class="folder-name-input"
+                  type="text"
+                  v-model="item.editName"
+                  @keyup.enter="saveNewFolderName(item)"
+                  @blur="saveNewFolderName(item)"
+                  @click.stop
+                />
+                <!-- 调试用
+                <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span> -->
+                <span
+                  class="folder-name"
+                  :class="{ clickable: item.type === 'folder' }"
+                  @click="item.type === 'folder' && enterFolder(item)"
+                  >{{ item.name }}</span
+                >
               </div>
             </td>
             <td>{{ formatSize(item.size) }}</td>
             <td>{{ formatDate(item.modifiedTime) }}</td>
             <td>{{ formatDate(item.createdTime) }}</td>
-            <td>{{ item.type === 'folder' ? '文件夹' : (item.fileType || '文件') }}</td>
+            <td>
+              {{ item.type === "folder" ? "文件夹" : item.fileType || "文件" }}
+            </td>
             <td class="actions-cell">
               <button class="action-btn" @click="handleRename(item)">
                 <Edit2 :size="16" />
@@ -134,10 +156,35 @@
               </button>
             </td>
           </tr>
-          <tr v-if="displayedItems.length === 0">
-            <td colspan="7" class="empty-message">
-              暂无数据
+
+          <tr v-if="isCreatingFolder">
+            <td class="checkbox-cell">
+              <input type="checkbox" disabled />
             </td>
+            <td>
+              <div class="name-cell">
+                <Folder class="item-icon" :size="16" />
+                <div style="width: 10px; height: 100%"></div>
+                <input
+                  ref="newFolderInput"
+                  class="folder-name-input"
+                  type="text"
+                  v-model="newFolderName"
+                  @keyup.enter="confirmCreateFolder"
+                  @blur="confirmCreateFolder"
+                  @click.stop
+                />
+              </div>
+            </td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>文件夹</td>
+            <td class="actions-cell">-</td>
+          </tr>
+
+          <tr v-if="displayedItems.length === 0">
+            <td colspan="7" class="empty-message">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -147,22 +194,26 @@
     <div class="pagination">
       <div class="pagination-info">共 {{ total }} 项</div>
       <div class="pagination-controls">
-        <button 
-          class="page-btn" 
+        <button
+          class="page-btn"
           :disabled="currentPage === 1"
           @click="handlePageChange(currentPage - 1)"
         >
           <ChevronLeft :size="16" />
         </button>
         <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-        <button 
-          class="page-btn" 
+        <button
+          class="page-btn"
           :disabled="currentPage === totalPages"
           @click="handlePageChange(currentPage + 1)"
         >
           <ChevronRight :size="16" />
         </button>
-        <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+        <select
+          v-model="pageSize"
+          @change="handlePageSizeChange"
+          class="page-size-select"
+        >
           <option :value="10">10条/页</option>
           <option :value="20">20条/页</option>
           <option :value="50">50条/页</option>
@@ -171,39 +222,46 @@
     </div>
 
     <!-- 右键菜单 -->
-    <div 
-      v-if="contextMenu.show" 
+    <div
+      v-if="contextMenu.show"
       class="context-menu"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
     >
-      <div class="context-menu-item" @click="handleContextMenuAction('rename')">
-        <Edit2 :size="16" />
-        重命名
-      </div>
-      <div class="context-menu-item delete" @click="handleContextMenuAction('delete')">
-        <Trash2 :size="16" />
-        删除
-      </div>
       <template v-if="contextMenu.type === 'item'">
-        <div class="context-menu-item" @click="handleContextMenuAction('rename')">
+        <div
+          class="context-menu-item"
+          @click="handleContextMenuAction('rename')"
+        >
           <Edit2 :size="16" />
           重命名
         </div>
-        <div class="context-menu-item delete" @click="handleContextMenuAction('delete')">
+        <div
+          class="context-menu-item delete"
+          @click="handleContextMenuAction('delete')"
+        >
           <Trash2 :size="16" />
           删除
         </div>
       </template>
       <template v-if="contextMenu.type === 'blank'">
-        <div class="context-menu-item" @click="handleContextMenuAction('uploadFile')">
+        <div
+          class="context-menu-item"
+          @click="handleContextMenuAction('uploadFile')"
+        >
           <Upload :size="16" />
           上传文件
         </div>
-        <div class="context-menu-item" @click="handleContextMenuAction('uploadFolder')">
+        <div
+          class="context-menu-item"
+          @click="handleContextMenuAction('uploadFolder')"
+        >
           <FolderPlus :size="16" />
           上传文件夹
         </div>
-        <div class="context-menu-item" @click="handleContextMenuAction('createFolder')">
+        <div
+          class="context-menu-item"
+          @click="handleContextMenuAction('createFolder')"
+        >
           <FolderPlus :size="16" />
           新建文件夹
         </div>
@@ -213,98 +271,134 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { 
-  Search, 
-  Upload, 
-  FolderPlus, 
-  Folder, 
-  File, 
-  Edit2, 
+// 导包
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import {
+  Search,
+  Upload,
+  FolderPlus,
+  Folder,
+  File,
+  Edit2,
   Trash2,
   ChevronLeft,
   ChevronRight,
-} from 'lucide-vue-next'
-import { format } from 'date-fns'
-import { menuService } from '@/api/MenuService.js'
-import { fileService } from '@/api/FileService.js'
-// 状态
-const searchQuery = ref('')
-const sortBy = ref('createdTime')
-const typeFilter = ref('all')
-const selectedItems = ref([])
-const currentPage = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
-const items = ref([])
-const desc = ref('desc')
+} from "lucide-vue-next";
+import { format } from "date-fns";
+import { menuService } from "@/api/MenuService.js";
+import { fileService } from "@/api/FileService.js";
 
+// 状态
+const searchQuery = ref("");
+const sortBy = ref("createdTime");
+const typeFilter = ref("all");
+const selectedItems = ref([]);
+const currentPage = ref(1);
+const pageSize = ref(20);
+const total = ref(0);
+const items = ref([]);
+const desc = ref("desc");
+
+// 右键菜单
 const contextMenu = ref({
   show: false,
   x: 0,
   y: 0,
   item: null,
-  type: 'item' // 新增菜单类型标识
-})
-// 进入的文件夹记录
-const currentMenu = ref(null)
-const navigationHistory = ref([])
-const currentPath = ref([{ id: null, name: '全部文件' }])
+  type: "item", // 新增菜单类型标识
+});
+
+// 当前目录
+const currentMenu = ref(null);
+// 历史路径
+const navigationHistory = ref([]);
+// 导航栏的当前进入的目录路径
+const currentPath = ref([{ id: null, name: "全部文件" }]);
+
+// 新建文件夹相关状态
+const isCreatingFolder = ref(false);
+const newFolderName = ref("新建文件夹");
+const newFolderInput = ref(null);
+const editNameInput = ref(null);
 
 // 监听目录ID变化
 watch(
-  () => currentMenu.value?.id, (newId, oldId) => {
+  () => currentMenu.value?.id,
+  (newId, oldId) => {
     if (newId !== oldId) {
-      loadData()
+      loadData();
     }
   }
-)
+);
+
+// 监听新建文件夹状态
+watch(isCreatingFolder, (newVal) => {
+  if (newVal) {
+    nextTick(() => {
+      if (newFolderInput.value) {
+        newFolderInput.value.focus();
+        newFolderInput.value.select();
+      }
+    });
+  }
+});
 
 // 计算属性
 const isAllSelected = computed(() => {
-  return displayedItems.value.length > 0 && 
-         selectedItems.value.length === displayedItems.value.length
-})
+  return (
+    displayedItems.value.length > 0 &&
+    selectedItems.value.length === displayedItems.value.length
+  );
+});
 
 const totalPages = computed(() => {
-  return Math.ceil(total.value / pageSize.value)
-})
+  return Math.ceil(total.value / pageSize.value);
+});
 
 const displayedItems = computed(() => {
-  return items.value
-})
+  return items.value;
+});
 
-// Add methods for navigation
+// 导航相关方法
 const navigateBack = async () => {
   if (navigationHistory.value.length > 0) {
-    // Pop the current location
-    currentPath.value.pop()
-    // Get the previous menu ID
-    const previousMenu = navigationHistory.value.pop()
-    currentMenu.value = previousMenu || null
-    // Reload data with the new menu ID
-    await loadData()
+    // 弹出当前位置
+    currentPath.value.pop();
+    // 获取上一个菜单ID
+    const previousMenu = navigationHistory.value.pop();
+    currentMenu.value = previousMenu || null;
+    // 使用新的菜单ID重新加载数据
+    await loadData();
   }
-}
+};
 
 // 进入指定目录
 const navigateToPath = async (index) => {
-  if (index < currentPath.value.length - 1) {
-    // Remove items after the clicked index
-    const newPath = currentPath.value.slice(0, index + 1)
-    currentPath.value = newPath
-    currentMenu.value = newPath[newPath.length - 1]
-    navigationHistory.value = navigationHistory.value.slice(0, index)
-    await loadData()
+  // 如果点击的是"全部文件"
+  if (index === 0) {
+    currentPath.value = [{ id: null, name: "全部文件" }];
+    currentMenu.value = {
+      id: null,
+      menuLevel: 1,
+    };
+    navigationHistory.value = [];
+  } else if (index < currentPath.value.length - 1) {
+    // 移除点击索引之后的项
+    const newPath = currentPath.value.slice(0, index + 1);
+    currentPath.value = newPath;
+    currentMenu.value = newPath[newPath.length - 1];
+    navigationHistory.value = navigationHistory.value.slice(0, index - 1); // 减1是因为要排除"全部文件"
   }
-}
+  await loadData();
+};
+
 // 进入指定目录
 const enterFolder = async (item) => {
-  navigationHistory.value.push(currentMenu.value)
-  currentMenu.value = { id: item.id, menuName: item.name }
-  currentPage.value = 1
-  await loadData()
-}
+  navigationHistory.value.push(currentMenu.value);
+  currentMenu.value = { id: item.id, menuName: item.name };
+  currentPage.value = 1;
+  await loadData();
+};
 
 const loadData = async () => {
   const params = {
@@ -312,42 +406,44 @@ const loadData = async () => {
     pageSize: pageSize.value,
     menuId: currentMenu.value?.id,
     name: searchQuery.value.trim() || undefined,
-    type: typeFilter.value === 'folder' ? 1 : typeFilter.value === 'file' ? 2 : 0,
-    sortField: sortBy.value === 'createdTime' ? 1 : 2,
-    desc: desc.value === 'desc' ? 1 : 2
-  }
-  console.log('params ', params)
-  const res = await menuService.getSubMenuList(params)
+    type:
+      typeFilter.value === "folder" ? 1 : typeFilter.value === "file" ? 2 : 0,
+    sortField: sortBy.value === "createdTime" ? 1 : 2,
+    desc: desc.value === "desc" ? 1 : 2,
+  };
+  console.log("params ", params);
+  const res = await menuService.getSubMenuList(params);
   if (res.code === 200) {
-    const data = res.data
-    currentMenu.value = data.currentMenu
-    
-    // 更新导航路径
+    const data = res.data;
+    currentMenu.value = data.currentMenu;
+
+    // 更新导航路径 - 确保始终包含"全部文件"
     if (data.currentMenu?.id) {
       currentPath.value = [
-        ...navigationHistory.value.map(h => ({ id: h.id, name: h.menuName })),
-        { id: data.currentMenu.id, name: data.currentMenu.menuName }
-      ]
+        { id: null, name: "全部文件" }, // 始终添加根目录
+        ...navigationHistory.value.map((h) => ({ id: h.id, name: h.menuName })),
+        { id: data.currentMenu.id, name: data.currentMenu.menuName },
+      ];
     } else {
-      currentPath.value = [{ id: null, name: '全部文件' }]
+      currentPath.value = [{ id: null, name: "全部文件" }];
     }
 
     items.value = [
-      ...(data.subMenuList || []).map(menu => ({
+      ...(data.subMenuList || []).map((menu) => ({
         id: menu.id,
         name: menu.menuName,
-        type: 'folder',
-        size: '-',
+        type: "folder",
+        size: "-",
         modifiedTime: menu.updateTime,
         createdTime: menu.createTime,
         parentId: menu.parentId,
         menuLevel: menu.menuLevel,
-        owner: menu.owner
+        owner: menu.owner,
       })),
-      ...(data.subFileList || []).map(file => ({
+      ...(data.subFileList || []).map((file) => ({
         id: file.id,
         name: file.fileName,
-        type: 'file',
+        type: "file",
         size: file.fileSize,
         modifiedTime: file.updateTime,
         createdTime: file.createTime,
@@ -356,75 +452,92 @@ const loadData = async () => {
         menuId: file.menuId,
         owner: file.owner,
         identifier: file.identifier,
-        realPath: file.realPath
-      }))
-    ]
-    total.value = data.total
-    currentPage.value = data.pageNum
-    pageSize.value = data.pageSize
+        realPath: file.realPath,
+      })),
+    ];
+    total.value = data.total;
+    currentPage.value = data.pageNum;
+    pageSize.value = data.pageSize;
   }
-}
+};
 
 const handleSearch = () => {
-  loadData()
-}
+  loadData();
+};
 
 const handleSort = () => {
   // 实现排序逻辑
-  loadData()
-}
+  loadData();
+};
 
 const handleTypeFilter = () => {
   // 实现类型筛选逻辑
-  loadData()
-}
+  loadData();
+};
 
 // 实现文件上传逻辑
 const handleUploadFile = () => {
-  const input = document.createElement('input')
-  input.type = 'file'
+  const input = document.createElement("input");
+  input.type = "file";
   // 选择文件上传
   input.onchange = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const res = await fileService.uploadSingleFile(file, currentMenu.value?.id)
+    const file = e.target.files[0];
+    if (!file) return;
+    const res = await fileService.uploadSingleFile(file, currentMenu.value?.id);
     if (res.code === 200) {
       // Reload file list
-      await loadData()
+      await loadData();
     }
-  }
-  input.click()
-}
+  };
+  input.click();
+};
 
 const handleUploadFolder = () => {
   // 实现文件夹上传逻辑
-}
+};
 
+// 重命名处理
 const handleRename = (item) => {
-  // 实现重命名逻辑
-}
+  if (item.type !== "folder") return;
+  // 先重置其他项的编辑状态
+  items.value.forEach((i) => {
+    if (i.id !== item.id) {
+      i.isEditing = false;
+    }
+  });
+  item.isEditing = true;
+  item.editName = item.name;
+
+  nextTick(() => {
+    const inputElement = document.querySelector(".folder-name-input");
+    if (inputElement) {
+      inputElement.focus();
+      inputElement.select();
+    }
+  });
+};
 
 const handleDelete = (item) => {
   // 实现删除逻辑
-}
+};
 
 const handlePageChange = (page) => {
-  currentPage.value = page
-  loadData()
-}
+  currentPage.value = page;
+  loadData();
+};
 
 const handlePageSizeChange = () => {
-  currentPage.value = 1
-  loadData()
-}
+  currentPage.value = 1;
+  loadData();
+};
 
 const toggleSelectAll = () => {
   if (isAllSelected.value) {
-    selectedItems.value = []
+    selectedItems.value = [];
   } else {
-    selectedItems.value = displayedItems.value.map(item => item.id)
+    selectedItems.value = displayedItems.value.map((item) => item.id);
   }
-}
+};
 
 const showContextMenu = (event, item) => {
   contextMenu.value = {
@@ -432,84 +545,168 @@ const showContextMenu = (event, item) => {
     x: event.clientX,
     y: event.clientY,
     item,
-    type: 'item'
-  }
-}
+    type: "item",
+  };
+};
 
 const handleContextMenuAction = (action) => {
-  const item = contextMenu.value.item
-  if (action === 'rename') {
-    handleRename(item)
-  } else if (action === 'delete') {
-    handleDelete(item)
-  } else if (action === 'uploadFile') {
-    handleUploadFile()
-  } else if (action === 'uploadFolder') {
-    handleUploadFolder()
-  } else if (action === 'createFolder') {
-    handleCreateFolder()
+  const item = contextMenu.value.item;
+  if (action === "rename" && item) {
+    console.log("右键后点击rename");
+    handleRename(item);
+  } else if (action === "delete" && item) {
+    console.log("右键后点击delete");
+    handleDelete(item);
+  } else if (action === "uploadFile") {
+    handleUploadFile();
+  } else if (action === "uploadFolder") {
+    handleUploadFolder();
+  } else if (action === "createFolder") {
+    console.log("右键后点击新建文件夹");
+    handleCreateFolder();
   }
-  contextMenu.value.show = false
-}
+  contextMenu.value.show = false;
+};
 
+// 空白区域右键
 const handleBlankRightClick = (event) => {
   contextMenu.value = {
     show: true,
     x: event.clientX,
     y: event.clientY,
     item: null,
-    type: 'blank'
-  }
-}
+    type: "blank",
+  };
+};
 
+// 新建文件夹 - 初始创建
 const handleCreateFolder = async () => {
+  // 检查是否需要添加序号
+  let folderBaseName = "新建文件夹";
+  let folderName = folderBaseName;
+  let counter = 1;
+
+  // 检查是否有重名文件夹
+  while (
+    items.value.some(
+      (item) => item.name === folderName && item.type === "folder"
+    )
+  ) {
+    folderName = `${folderBaseName}${counter}`;
+    counter++;
+  }
+
+  newFolderName.value = folderName;
+  isCreatingFolder.value = true;
+};
+
+// 确认创建文件夹
+const confirmCreateFolder = async () => {
+  if (!isCreatingFolder.value || !newFolderName.value.trim()) {
+    isCreatingFolder.value = false;
+    return;
+  }
+
   try {
-    const res = await menuService.createMenu({
-      menuName: '新建文件夹',
-      parentId: currentMenu.value?.id
-    })
+    // 构建请求参数
+    let newMenuLevel = 0;
+    let pid = null;
+    if (currentMenu.value?.id === null) {
+      newMenuLevel = 1;
+    } else {
+      newMenuLevel = currentMenu.value.menuLevel + 1;
+      pid = currentMenu.value?.id;
+    }
+
+    const menuParams = {
+      menuName: newFolderName.value.trim(),
+      menuLevel: newMenuLevel,
+      parentId: pid,
+    };
+
+    // 调用创建接口
+    const res = await menuService.addMenu(menuParams);
+
     if (res.code === 200) {
-      await loadData()
+      await loadData();
+    } else {
+      console.error("创建文件夹失败:", res.msg);
     }
   } catch (error) {
-    console.error('创建文件夹失败:', error)
+    console.error("创建文件夹出错:", error);
+  } finally {
+    isCreatingFolder.value = false;
   }
-}
+};
 
-const hideContextMenu = (event) => {
-  if (!event.target.closest('.context-menu')) {
-    contextMenu.value.show = false
+// 保存文件夹新名称
+const saveNewFolderName = async (item) => {
+  if (!item.isEditing) return;
+  const res = await menuService.updateMenu({
+    id: item.id,
+    menuName: item.editName,
+    owner: item.owner,
+  });
+  if (res.code === 200) {
+    console.log("文件夹名称已更新");
+    await loadData();
+  } else {
+    console.error("更新文件夹名称失败:", res.msg);
   }
-}
+  item.name = item.editName;
+  item.isEditing = false;
+};
+
+// 处理表格点击 - 取消创建/编辑状态
+const handleTableClick = () => {
+  // 如果正在创建文件夹，则确认创建
+  if (isCreatingFolder.value) {
+    confirmCreateFolder();
+  }
+
+  // 取消所有编辑状态
+  items.value.forEach((item) => {
+    if (item.isEditing) {
+      saveNewFolderName(item);
+    }
+  });
+};
+
+// 隐藏右键菜单
+const hideContextMenu = (event) => {
+  if (!event.target.closest(".context-menu")) {
+    contextMenu.value.show = false;
+  }
+};
 
 const formatSize = (size) => {
-  if (size === '-' || size === null || size === undefined) return '-'
-  
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let value = Number(size)
-  let unitIndex = 0
-  
+  if (size === "-" || size === null || size === undefined) return "-";
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = Number(size);
+  let unitIndex = 0;
+
   while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex++
+    value /= 1024;
+    unitIndex++;
   }
-  
-  return `${value.toFixed(2)} ${units[unitIndex]}`
-}
+
+  return `${value.toFixed(2)} ${units[unitIndex]}`;
+};
 
 const formatDate = (dateStr) => {
-  return dateStr ? format(new Date(dateStr), 'yyyy-MM-dd HH:mm:ss') : '-'
-}
+  return dateStr ? format(new Date(dateStr), "yyyy-MM-dd HH:mm:ss") : "-";
+};
 
 // 生命周期钩子
 onMounted(() => {
-  loadData()
-  document.addEventListener('click', hideContextMenu)
-})
+  loadData();
+  document.addEventListener("click", hideContextMenu);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', hideContextMenu)
-})
+  document.removeEventListener("click", hideContextMenu);
+});
 </script>
 
 <style scoped>
@@ -699,7 +896,6 @@ onUnmounted(() => {
   border-radius: 4px;
   position: absolute;
   bottom: 0;
-
 }
 
 .pagination-info {
@@ -752,11 +948,11 @@ onUnmounted(() => {
 /* 右键菜单样式 */
 .context-menu {
   position: fixed;
+  z-index: 9999;
   background-color: white;
   border-radius: 4px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   padding: 4px;
-  z-index: 1000;
   font-size: 14px;
 }
 
@@ -786,8 +982,6 @@ onUnmounted(() => {
   padding: 24px;
   color: #94a3b8;
 }
-
-
 
 /* 导航栏 */
 
@@ -861,6 +1055,5 @@ onUnmounted(() => {
 .folder-name:hover {
   color: #3b82f6;
 }
-
 </style>
 
