@@ -43,8 +43,8 @@ export const get = (url, params = {}) => {
 }
 
 // 封装 POST 请求
-export const post = (url, data = {}) => {
-  return httpClient.post(url, data)
+export const post = (url, data = {}, config = {}) => {
+  return httpClient.post(url, data, config)
 }
 
 // 封装 PUT 请求
@@ -57,16 +57,12 @@ export const del = (url, params = {}) => {
   return httpClient.delete(url, { params })
 }
 
-// 封装 POST 请求
-export const upload = (url, file, onUploadProgress = null) => {
-  const formData = new FormData()
-  formData.append('file', file)
-  
-  return httpClient.post(url, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    },
-    onUploadProgress
+// 封装 upload 请求
+export const upload = (url, params) => {
+  return post(url, params, {
+      headers: {
+        'Content-Type':'multipart/form-data'
+      },
   })
 }
 

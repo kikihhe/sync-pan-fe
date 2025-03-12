@@ -37,7 +37,6 @@
             type="text" 
             v-model="searchQuery" 
             placeholder="搜索文件或文件夹..."
-            @input="handleSearch"
           />
         </div>
       </div>
@@ -49,13 +48,22 @@
             <option value="modifiedTime">按修改时间排序</option>
           </select>
           
+          <select v-model="desc" @change="handleSort" class="filter-select">
+            <option value="desc">倒序</option>
+            <option value="asc">正序</option>
+          </select>
+          
           <select v-model="typeFilter" @change="handleTypeFilter" class="filter-select">
             <option value="all">全部</option>
             <option value="folder">只看文件夹</option>
             <option value="file">只看文件</option>
           </select>
         </div>
-        
+
+        <button class="search-btn" @click="handleSearch">
+            搜索
+        </button>
+
         <div class="action-group">
           <button class="upload-btn" @click="handleUploadFile">
             <Upload :size="20" />
@@ -89,7 +97,7 @@
             <th class="actions-cell">操作</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody @contextmenu.prevent="handleBlankRightClick">
           <tr 
             v-for="item in displayedItems" 
             :key="item.id"
@@ -172,6 +180,30 @@
         <Trash2 :size="16" />
         删除
       </div>
+      <template v-if="contextMenu.type === 'item'">
+        <div class="context-menu-item" @click="handleContextMenuAction('rename')">
+          <Edit2 :size="16" />
+          重命名
+        </div>
+        <div class="context-menu-item delete" @click="handleContextMenuAction('delete')">
+          <Trash2 :size="16" />
+          删除
+        </div>
+      </template>
+      <template v-if="contextMenu.type === 'blank'">
+        <div class="context-menu-item" @click="handleContextMenuAction('uploadFile')">
+          <Upload :size="16" />
+          上传文件
+        </div>
+        <div class="context-menu-item" @click="handleContextMenuAction('uploadFolder')">
+          <FolderPlus :size="16" />
+          上传文件夹
+        </div>
+        <div class="context-menu-item" @click="handleContextMenuAction('createFolder')">
+          <FolderPlus :size="16" />
+          新建文件夹
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -191,7 +223,7 @@ import {
 } from 'lucide-vue-next'
 import { format } from 'date-fns'
 import { menuService } from '@/api/MenuService.js'
-
+import { fileService } from '@/api/FileService.js'
 // 状态
 const searchQuery = ref('')
 const sortBy = ref('createdTime')
@@ -201,11 +233,14 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const items = ref([])
+const desc = ref('desc')
+
 const contextMenu = ref({
   show: false,
   x: 0,
   y: 0,
-  item: null
+  item: null,
+  type: 'item' // 新增菜单类型标识
 })
 // 进入的文件夹记录
 const currentMenuId = ref(null)
@@ -257,7 +292,11 @@ const loadData = async () => {
   const params = {
     pageNum: currentPage.value,
     pageSize: pageSize.value,
-    menuId: currentMenuId.value
+    menuId: currentMenuId.value,
+    name: searchQuery.value.trim() || undefined,
+    type: typeFilter.value === 'folder' ? 1 : typeFilter.value === 'file' ? 2 : 0,
+    sortField: sortBy.value === 'createdTime' ? 1 : 2,
+    desc: desc.value === 'desc' ? 1 : 2
   }
   console.log('params ', params)
   const res = await menuService.getSubMenuList(params)
@@ -297,19 +336,34 @@ const loadData = async () => {
 }
 
 const handleSearch = () => {
-  // 实现搜索逻辑
+  loadData()
 }
 
 const handleSort = () => {
   // 实现排序逻辑
+  loadData()
 }
 
 const handleTypeFilter = () => {
   // 实现类型筛选逻辑
+  loadData()
 }
 
+// 实现文件上传逻辑
 const handleUploadFile = () => {
-  // 实现文件上传逻辑
+  const input = document.createElement('input')
+  input.type = 'file'
+  // 选择文件上传
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const res = await fileService.uploadSingleFile(file, currentMenuId.value)
+    if (res.code === 200) {
+      // Reload file list
+      await loadData()
+    }
+  }
+  input.click()
 }
 
 const handleUploadFolder = () => {
@@ -347,7 +401,8 @@ const showContextMenu = (event, item) => {
     show: true,
     x: event.clientX,
     y: event.clientY,
-    item
+    item,
+    type: 'item'
   }
 }
 
@@ -357,8 +412,38 @@ const handleContextMenuAction = (action) => {
     handleRename(item)
   } else if (action === 'delete') {
     handleDelete(item)
+  } else if (action === 'uploadFile') {
+    handleUploadFile()
+  } else if (action === 'uploadFolder') {
+    handleUploadFolder()
+  } else if (action === 'createFolder') {
+    handleCreateFolder()
   }
   contextMenu.value.show = false
+}
+
+const handleBlankRightClick = (event) => {
+  contextMenu.value = {
+    show: true,
+    x: event.clientX,
+    y: event.clientY,
+    item: null,
+    type: 'blank'
+  }
+}
+
+const handleCreateFolder = async () => {
+  try {
+    const res = await menuService.createMenu({
+      menuName: '新建文件夹',
+      parentId: currentMenuId.value
+    })
+    if (res.code === 200) {
+      await loadData()
+    }
+  } catch (error) {
+    console.error('创建文件夹失败:', error)
+  }
 }
 
 const hideContextMenu = (event) => {
@@ -401,6 +486,7 @@ onUnmounted(() => {
 .file-view {
   padding: 16px;
   background-color: #f8fafc;
+  height: 80vh;
 }
 
 /* 工具栏样式 */
@@ -417,6 +503,29 @@ onUnmounted(() => {
 .toolbar-left {
   flex: 1;
   margin-right: 16px;
+}
+
+.search-box {
+  width: 400px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-btn {
+  padding: 6px 12px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-btn:hover {
+  background-color: #4338ca;
 }
 
 .search-box {
@@ -555,11 +664,13 @@ onUnmounted(() => {
 /* 分页样式 */
 .pagination {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 12px;
   background-color: white;
   border-radius: 4px;
+  position: absolute;
+  bottom: 0;
+
 }
 
 .pagination-info {

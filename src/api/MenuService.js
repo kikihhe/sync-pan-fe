@@ -6,7 +6,11 @@ export const getSubMenuList = async (params) => {
     const res = await httpClient.post('/menu/getSubMenuList', {
             pageNum: params.pageNum,
             pageSize: params.pageSize,
-            menuId: params.menuId
+            menuId: params.menuId,
+            name: params.name,
+            sortField: params.sortField,
+            desc: params.desc,
+            type: params.type
     });
     return res;
 };
