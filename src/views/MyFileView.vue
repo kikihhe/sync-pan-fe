@@ -209,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { 
   Search, 
   Upload, 
@@ -246,6 +246,13 @@ const contextMenu = ref({
 const currentMenuId = ref(null)
 const navigationHistory = ref([])
 const currentPath = ref([{ id: null, name: '全部文件' }])
+
+// 监听目录ID变化
+watch(currentMenuId, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    loadData()
+  }
+})
 
 // 计算属性
 const isAllSelected = computed(() => {
