@@ -110,12 +110,16 @@
                 :value="item.id"
               />
             </td>
-            <td class="name-cell">
-              <Folder v-if="item.type === 'folder'" class="item-icon" :size="16" @click="enterFolder(item)" />
-              <File   v-else class="item-icon" :size="16" />
-              <!-- 调试用 -->
-              <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span>
-              <span class="folder-name" :class="{ 'clickable': item.type === 'folder' }">{{ item.name }}</span>
+            <td  >
+              <div class="name-cell">
+                <Folder v-if="item.type === 'folder'" class="item-icon" :size="16" @click="enterFolder(item)" />
+                <File   v-else class="item-icon" :size="16" />
+                <!-- 放在图标与文件名之间，拉开间隔 -->
+                <div style="width:10px;height:100%"></div>
+                <!-- 调试用 -->
+                <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span>
+                <span class="folder-name" :class="{ 'clickable': item.type === 'folder' }" @click="item.type === 'folder' && enterFolder(item)">{{ item.name }}</span>
+              </div>
             </td>
             <td>{{ formatSize(item.size) }}</td>
             <td>{{ formatDate(item.modifiedTime) }}</td>
@@ -243,16 +247,18 @@ const contextMenu = ref({
   type: 'item' // 新增菜单类型标识
 })
 // 进入的文件夹记录
-const currentMenuId = ref(null)
+const currentMenu = ref(null)
 const navigationHistory = ref([])
 const currentPath = ref([{ id: null, name: '全部文件' }])
 
 // 监听目录ID变化
-watch(currentMenuId, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    loadData()
+watch(
+  () => currentMenu.value?.id, (newId, oldId) => {
+    if (newId !== oldId) {
+      loadData()
+    }
   }
-})
+)
 
 // 计算属性
 const isAllSelected = computed(() => {
@@ -275,31 +281,36 @@ const navigateBack = async () => {
     currentPath.value.pop()
     // Get the previous menu ID
     const previousMenu = navigationHistory.value.pop()
-    currentMenuId.value = previousMenu?.id || null
+    currentMenu.value = previousMenu || null
     // Reload data with the new menu ID
     await loadData()
   }
 }
 
+// 进入指定目录
 const navigateToPath = async (index) => {
   if (index < currentPath.value.length - 1) {
     // Remove items after the clicked index
     const newPath = currentPath.value.slice(0, index + 1)
     currentPath.value = newPath
-    // Update current menu ID
-    currentMenuId.value = newPath[newPath.length - 1].id
-    // Update navigation history
+    currentMenu.value = newPath[newPath.length - 1]
     navigationHistory.value = navigationHistory.value.slice(0, index)
-    // Reload data
     await loadData()
   }
+}
+// 进入指定目录
+const enterFolder = async (item) => {
+  navigationHistory.value.push(currentMenu.value)
+  currentMenu.value = { id: item.id, menuName: item.name }
+  currentPage.value = 1
+  await loadData()
 }
 
 const loadData = async () => {
   const params = {
     pageNum: currentPage.value,
     pageSize: pageSize.value,
-    menuId: currentMenuId.value,
+    menuId: currentMenu.value?.id,
     name: searchQuery.value.trim() || undefined,
     type: typeFilter.value === 'folder' ? 1 : typeFilter.value === 'file' ? 2 : 0,
     sortField: sortBy.value === 'createdTime' ? 1 : 2,
@@ -309,6 +320,18 @@ const loadData = async () => {
   const res = await menuService.getSubMenuList(params)
   if (res.code === 200) {
     const data = res.data
+    currentMenu.value = data.currentMenu
+    
+    // 更新导航路径
+    if (data.currentMenu?.id) {
+      currentPath.value = [
+        ...navigationHistory.value.map(h => ({ id: h.id, name: h.menuName })),
+        { id: data.currentMenu.id, name: data.currentMenu.menuName }
+      ]
+    } else {
+      currentPath.value = [{ id: null, name: '全部文件' }]
+    }
+
     items.value = [
       ...(data.subMenuList || []).map(menu => ({
         id: menu.id,
@@ -364,7 +387,7 @@ const handleUploadFile = () => {
   input.onchange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    const res = await fileService.uploadSingleFile(file, currentMenuId.value)
+    const res = await fileService.uploadSingleFile(file, currentMenu.value?.id)
     if (res.code === 200) {
       // Reload file list
       await loadData()
@@ -443,7 +466,7 @@ const handleCreateFolder = async () => {
   try {
     const res = await menuService.createMenu({
       menuName: '新建文件夹',
-      parentId: currentMenuId.value
+      parentId: currentMenu.value?.id
     })
     if (res.code === 200) {
       await loadData()
@@ -636,7 +659,6 @@ onUnmounted(() => {
 .name-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .item-icon {
