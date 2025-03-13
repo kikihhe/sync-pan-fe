@@ -24,10 +24,15 @@ export const addMenu = async (params) => {
 export const updateMenu = async (data) => {
     return await httpClient.post("/menu/updateMenu", data)
 }
-  
+
+// 删除目录
+export const deleteMenu = async (menuId) => {
+    return await httpClient.post("/menu/deleteMenu?menuId=" + menuId)
+}
 
 export const menuService = {
     getSubMenuList,
     addMenu,
-    updateMenu
+    updateMenu,
+    deleteMenu
 }

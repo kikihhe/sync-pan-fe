@@ -131,12 +131,11 @@
                   @blur="saveNewFolderName(item)"
                   @click.stop
                 />
-                <!-- 调试用
-                <span style="display:none">{{ console.log('FileType:', item.fileType) }}</span> -->
                 <span
                   class="folder-name"
                   :class="{ clickable: item.type === 'folder' }"
                   @click="item.type === 'folder' && enterFolder(item)"
+                  v-show="!item.isEditing"
                   >{{ item.name }}</span
                 >
               </div>
@@ -287,6 +286,7 @@ import {
 import { format } from "date-fns";
 import { menuService } from "@/api/MenuService.js";
 import { fileService } from "@/api/FileService.js";
+// import { checkService } from "@/utils/CheckService.js";
 
 // 状态
 const searchQuery = ref("");
@@ -411,7 +411,7 @@ const loadData = async () => {
     sortField: sortBy.value === "createTime" ? 1 : 2,
     desc: desc.value === "desc" ? 1 : 2,
   };
-  console.log("params ", params);
+  // console.log("params ", params);
   const res = await menuService.getSubMenuList(params);
   if (res.code === 200) {
     const data = res.data;
@@ -498,13 +498,13 @@ const handleUploadFolder = () => {
 
 // 重命名处理
 const handleRename = (item) => {
-  if (item.type !== "folder") return;
   // 先重置其他项的编辑状态
   items.value.forEach((i) => {
     if (i.id !== item.id) {
       i.isEditing = false;
     }
   });
+
   item.isEditing = true;
   item.editName = item.name;
 
@@ -517,8 +517,29 @@ const handleRename = (item) => {
   });
 };
 
-const handleDelete = (item) => {
-  // 实现删除逻辑
+const handleDelete = async (item) => {
+  try {
+    let res;
+    if (item.type === "folder") {
+      // 删除目录
+      res = await menuService.deleteMenu(item.id);
+    } else {
+      // 删除文件
+      res = await fileService.deleteFile({ fileList: [item.id] });
+    }
+
+    if (res.code === 200) {
+      
+      // 清空选中项
+      selectedItems.value = selectedItems.value.filter((id) => id !== item.id);
+    } else {
+      console.error("删除失败: ", res.msg);
+    }
+  } catch (error) {
+    console.error("删除操作出错: ", error);
+  }
+  // 重新加载数据
+  await loadData();
 };
 
 const handlePageChange = (page) => {
@@ -606,6 +627,15 @@ const confirmCreateFolder = async () => {
     isCreatingFolder.value = false;
     return;
   }
+  // // 同目录下不能有重名文件/目录
+  // if (
+  //   checkService.checkDuplicateName(items.value, newFolderName.value) ||
+  //   !checkService.validateFileName(newFolderName.value)
+  // ) {
+  //   console.warn("目录名称已存在");
+  //   isCreatingFolder.value = false;
+  //   return;
+  // }
 
   try {
     // 构建请求参数
@@ -630,7 +660,7 @@ const confirmCreateFolder = async () => {
     if (res.code === 200) {
       await loadData();
     } else {
-      console.error("创建文件夹失败:", res.msg);
+      console.error("创建文件夹失败: ", res.msg);
     }
   } catch (error) {
     console.error("创建文件夹出错:", error);
@@ -639,22 +669,52 @@ const confirmCreateFolder = async () => {
   }
 };
 
-// 保存文件夹新名称
 const saveNewFolderName = async (item) => {
   if (!item.isEditing) return;
-  const res = await menuService.updateMenu({
-    id: item.id,
-    menuName: item.editName,
-    owner: item.owner,
-  });
-  if (res.code === 200) {
-    console.log("文件夹名称已更新");
-    await loadData();
-  } else {
-    console.error("更新文件夹名称失败:", res.msg);
+  const originalName = item.name;
+  const newName = item.editName?.trim();
+  if (!newName) {
+    console.warn("名称不能为空");
+    item.isEditing = false;
+    return;
   }
-  item.name = item.editName;
-  item.isEditing = false;
+  if (newName === originalName) {
+    console.warn("名称未改动");
+    // 退出编辑状态
+    item.isEditing = false;
+    return;
+  }
+  try {
+    let res;
+
+    if (item.type === "folder") {
+      // 文件夹重命名
+      res = await menuService.updateMenu({
+        id: item.id,
+        menuName: item.editName.trim(),
+        owner: item.owner,
+      });
+    } else {
+      // 文件重命名
+      res = await fileService.updateFile({
+        id: item.id,
+        fileName: item.editName.trim(),
+        owner: item.owner,
+      });
+    }
+
+    if (res.code === 200) {
+      console.log(item.type === "folder" ? "文件夹名称已更新" : "文件名称已更新");
+    } else {
+      console.error("更新名称失败:", res.msg);
+    }
+  } catch (error) {
+    console.error("更新名称出错:", error);
+  } finally {
+    item.name = item.editName;
+    item.isEditing = false;
+  }
+  await loadData();
 };
 
 // 处理表格点击 - 取消创建/编辑状态
@@ -1056,4 +1116,3 @@ onUnmounted(() => {
   color: #3b82f6;
 }
 </style>
-

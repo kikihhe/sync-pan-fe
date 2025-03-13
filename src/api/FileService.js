@@ -50,6 +50,18 @@ export const uploadSingleFile = async (file, menuId) => {
     return res
 }
 
+// 修改文件
+export const updateFile = async (data) => {
+  return await httpClient.post('/file/updateFile', data)
+}
+
+// 删除文件
+export const deleteFile = async (data) => {
+  return await httpClient.post('/file/delete', data)
+}
+
 export const fileService = {
-    uploadSingleFile
+    uploadSingleFile,
+    updateFile,
+    deleteFile
 }
