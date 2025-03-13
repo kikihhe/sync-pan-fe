@@ -44,8 +44,8 @@
       <div class="toolbar-right">
         <div class="filter-group">
           <select v-model="sortBy" @change="handleSort" class="filter-select">
-            <option value="createdTime">按创建时间排序</option>
-            <option value="modifiedTime">按修改时间排序</option>
+            <option value="createTime">按创建时间排序</option>
+            <option value="updateTime">按修改时间排序</option>
           </select>
 
           <select v-model="desc" @change="handleSort" class="filter-select">
@@ -142,8 +142,8 @@
               </div>
             </td>
             <td>{{ formatSize(item.size) }}</td>
-            <td>{{ formatDate(item.modifiedTime) }}</td>
-            <td>{{ formatDate(item.createdTime) }}</td>
+            <td>{{ formatDate(item.createTime) }}</td>
+            <td>{{ formatDate(item.updateTime) }}</td>
             <td>
               {{ item.type === "folder" ? "文件夹" : item.fileType || "文件" }}
             </td>
@@ -290,7 +290,7 @@ import { fileService } from "@/api/FileService.js";
 
 // 状态
 const searchQuery = ref("");
-const sortBy = ref("createdTime");
+const sortBy = ref("createTime");
 const typeFilter = ref("all");
 const selectedItems = ref([]);
 const currentPage = ref(1);
@@ -408,7 +408,7 @@ const loadData = async () => {
     name: searchQuery.value.trim() || undefined,
     type:
       typeFilter.value === "folder" ? 1 : typeFilter.value === "file" ? 2 : 0,
-    sortField: sortBy.value === "createdTime" ? 1 : 2,
+    sortField: sortBy.value === "createTime" ? 1 : 2,
     desc: desc.value === "desc" ? 1 : 2,
   };
   console.log("params ", params);
@@ -434,8 +434,8 @@ const loadData = async () => {
         name: menu.menuName,
         type: "folder",
         size: "-",
-        modifiedTime: menu.updateTime,
-        createdTime: menu.createTime,
+        updateTime: menu.updateTime,
+        createTime: menu.createTime,
         parentId: menu.parentId,
         menuLevel: menu.menuLevel,
         owner: menu.owner,
@@ -445,8 +445,8 @@ const loadData = async () => {
         name: file.fileName,
         type: "file",
         size: file.fileSize,
-        modifiedTime: file.updateTime,
-        createdTime: file.createTime,
+        updateTime: file.updateTime,
+        createTime: file.createTime,
         fileType: file.fileType,
         storageType: file.storageType,
         menuId: file.menuId,
