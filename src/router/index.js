@@ -59,6 +59,10 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
       children: [
+        {
+          path: '',
+          redirect: '/file'
+        },
         // {
         //   path: '/user',
         //   name: 'user',
