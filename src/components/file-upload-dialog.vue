@@ -28,7 +28,7 @@
           <FolderUp :size="48" v-if="isFolder"/>
           <Upload :size="48" v-else/>
         </div>
-        <p>单击或拖动{{ isFolder ? '文件夹' : '文件' }}到此区域上传</p>
+        <p>单击或拖动文件到此区域上传</p>
       </div>
 
       <!-- 文件列表 -->
