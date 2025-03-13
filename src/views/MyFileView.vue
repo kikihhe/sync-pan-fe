@@ -222,6 +222,22 @@
       </div>
     </div>
 
+    <!-- 上传文件 -->
+    <FileUploadDialog
+        :show="showFileUploadDialog"
+        :is-folder="isUploadingFolder"
+        @close="showFileUploadDialog = false"
+        @upload="handleUploadComplete"
+    />
+    <!-- 上传文件夹 -->
+    <FolderUploadDialog
+        :show="showFolderUploadDialog"
+        :parent-menu-id="currentMenu?.id"
+        :current-menu="currentMenu"
+        @close="showFolderUploadDialog = false"
+        @upload-complete="handleFolderUploadComplete"
+    />
+
     <!-- 右键菜单 -->
     <div
         v-if="contextMenu.show"
@@ -300,7 +316,9 @@ import {
 import {format} from "date-fns";
 import {menuService} from "@/api/MenuService.js";
 import {fileService} from "@/api/FileService.js";
-// import { checkService } from "@/utils/CheckService.js";
+import FileUploadDialog from '@/components/file-upload-dialog.vue'
+// 导入新组件
+import FolderUploadDialog from '@/components/folder-upload-dialog.vue'
 
 // 状态
 const searchQuery = ref("");
@@ -334,6 +352,12 @@ const isCreatingFolder = ref(false);
 const newFolderName = ref("新建文件夹");
 const newFolderInput = ref(null);
 const editNameInput = ref(null);
+
+// 上传对话框状态
+const showFileUploadDialog = ref(false)
+const showFolderUploadDialog = ref(false)
+const isUploadingFolder = ref(false)
+
 
 // 监听目录ID变化
 watch(
@@ -491,25 +515,36 @@ const handleTypeFilter = () => {
 
 // 实现文件上传逻辑
 const handleUploadFile = () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  // 选择文件上传
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const res = await fileService.uploadSingleFile(file, currentMenu.value?.id);
-    if (res.code === 200) {
-      // Reload file list
-      await loadData();
-    }
-  };
-  input.click();
-};
+  isUploadingFolder.value = false
+  showFileUploadDialog.value = true
+}
 
+// 实现文件夹上传逻辑
 const handleUploadFolder = () => {
-  // 实现文件夹上传逻辑
-};
+  showFolderUploadDialog.value = true
+}
 
+// 处理文件夹上传完成
+const handleFolderUploadComplete = async () => {
+  await loadData()
+  showFolderUploadDialog.value = false
+}
+
+// 处理文件上传
+const handleUploadComplete = async (files) => {
+  for (const file of files) {
+    try {
+      const res = await fileService.uploadSingleFile(file.file, currentMenu.value?.id)
+      if (res.code !== 200) {
+        console.error('上传失败:', file.name)
+      }
+    } catch (error) {
+      console.error('上传出错:', error)
+    }
+  }
+  // 重新加载文件列表
+  await loadData()
+}
 // 重命名处理
 const handleRename = (item) => {
   // 先重置其他项的编辑状态
