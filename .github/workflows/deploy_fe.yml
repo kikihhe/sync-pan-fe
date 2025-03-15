@@ -1,0 +1,64 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - deploy_test   # 测试环境分支
+      - deploy        # 生产环境分支
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # 根据分支设置环境变量
+      ENV_FILE: ${{ contains(github.ref, 'deploy_test') && '.env.development' || '.env.production' }}
+      BUILD_MODE: ${{ contains(github.ref, 'deploy_test') && 'development' || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.20.5'
+
+      - name: Copy Environment File
+        run: |
+          # 根据分支复制对应的环境文件
+          cp ${{ env.ENV_FILE }} .env
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Project
+        run: npm run build -- --mode ${{ env.BUILD_MODE }}
+
+      - name: Build Docker Image
+        run: |
+          docker build -t sync-pan-fe .
+          docker save -o sync-pan-fe.tar sync-pan-fe
+
+      # 使用 sshpass + scp 传输镜像到服务器
+      - name: Copy Docker image to server
+        run: |
+          sudo apt-get update && sudo apt-get install -y sshpass  # 确保 sshpass 可用
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" scp \
+          -o StrictHostKeyChecking=no \
+          sync-pan-fe.tar \
+          root@8.137.53.199:/root/workspace/sync-pan-fe/sync-pan-fe.tar
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1
+        run: |
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@8.137.53.199 << 'EOF'
+          cd /root/workspace/sync-pan-fe
+          docker stop sync-pan-fe || true
+          docker rm sync-pan-fe || true
+          docker rmi sync-pan-fe || true
+          docker load -i sync-pan-fe.tar
+          docker run -d \
+            --name sync-pan-fe \
+            -p 80:3000 \
+            -v /root/workspace/sync-pan-fe:/app \
+            sync-pan-fe
