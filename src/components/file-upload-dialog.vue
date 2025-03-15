@@ -2,13 +2,14 @@
   <div v-if="show" class="upload-dialog-overlay">
     <div class="upload-dialog">
       <div class="upload-dialog-header">
-        <h3>{{ isFolder ? '上传文件夹' : '上传文件' }}</h3>
-        <button class="close-btn" @click="onClose">
+        <h3>上传文件</h3>
+        <button class="close-btn" @click="onClose" :disabled="isUploading">
           <X :size="20"/>
         </button>
       </div>
 
       <div
+          v-if="!isUploading"
           class="upload-area"
           @drop.prevent="handleDrop"
           @dragover.prevent="handleDragOver"
@@ -19,26 +20,43 @@
         <input
             type="file"
             ref="fileInput"
-            :multiple="!isFolder"
-            :webkitdirectory="isFolder"
+            multiple
             style="display: none"
             @change="handleFileSelect"
         />
         <div class="upload-icon">
-          <FolderUp :size="48" v-if="isFolder"/>
-          <Upload :size="48" v-else/>
+          <Upload :size="48"/>
         </div>
         <p>单击或拖动文件到此区域上传</p>
       </div>
 
+      <!-- 上传进度 -->
+      <div v-if="isUploading" class="upload-progress">
+        <div class="progress-header">
+          <span>上传进度</span>
+          <span>{{ uploadedCount }}/{{ totalCount }}</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" :style="{ width: `${uploadProgress}%` }"></div>
+        </div>
+        <div class="current-operation">
+          {{ currentOperation }}
+        </div>
+      </div>
+
       <!-- 文件列表 -->
-      <div class="file-list" v-if="selectedFiles.length > 0">
+      <div class="file-list" v-if="selectedFiles.length > 0 && !isUploading">
         <div class="file-list-header">
-          <span class="file-name">名称</span>
+          <span class="file-path">路径</span>
           <span class="file-size">大小</span>
         </div>
         <div class="file-item" v-for="file in selectedFiles" :key="file.path">
-          <span class="file-name">{{ file.name }}</span>
+          <div class="file-path-container">
+            <span class="file-path" :title="file.path">{{ file.path }}</span>
+            <button class="copy-path-btn" @click="copyPath(file.path)" title="复制路径">
+              <Copy :size="14"/>
+            </button>
+          </div>
           <span class="file-size">{{ formatSize(file.size) }}</span>
         </div>
         <div class="total-size" v-if="selectedFiles.length > 0">
@@ -47,11 +65,11 @@
       </div>
 
       <div class="upload-dialog-footer">
-        <button class="cancel-btn" @click="onClose">取消</button>
+        <button class="cancel-btn" @click="onClose" :disabled="isUploading">取消</button>
         <button
             class="upload-btn"
-            @click="handleUpload"
-            :disabled="selectedFiles.length === 0"
+            @click="startUpload"
+            :disabled="selectedFiles.length === 0 || isUploading"
         >
           开始上传
         </button>
@@ -62,22 +80,38 @@
 
 <script setup>
 import {ref, computed} from 'vue'
-import {Upload, FolderUp, X} from 'lucide-vue-next'
+import {Upload, Copy, X} from 'lucide-vue-next'
+import {fileService} from '@/api/FileService.js'
 
 const props = defineProps({
   show: Boolean,
-  isFolder: Boolean
+  parentMenuId: [String, Number, null],
+  currentMenu: {
+    type: Object,
+    default: () => ({id: null, menuLevel: 0})
+  }
 })
 
-const emit = defineEmits(['close', 'upload'])
+const emit = defineEmits(['close', 'uploadComplete'])
 
+// 状态变量
 const isDragging = ref(false)
 const fileInput = ref(null)
 const selectedFiles = ref([])
+const isUploading = ref(false)
+const uploadedCount = ref(0)
+const totalCount = ref(0)
+const currentOperation = ref('')
 
 // 计算总大小
 const totalSize = computed(() => {
   return selectedFiles.value.reduce((total, file) => total + file.size, 0)
+})
+
+// 上传进度
+const uploadProgress = computed(() => {
+  if (totalCount.value === 0) return 0
+  return Math.round((uploadedCount.value / totalCount.value) * 100)
 })
 
 // 触发文件选择
@@ -88,94 +122,99 @@ const triggerFileInput = () => {
 // 处理文件选择
 const handleFileSelect = (event) => {
   const files = Array.from(event.target.files)
-  if (props.isFolder) {
-    // 处理文件夹上传
-    const folderFiles = files.map(file => ({
-      name: file.webkitRelativePath || file.name,
-      size: file.size,
-      file: file
-    }))
-    selectedFiles.value = folderFiles
-  } else {
-    // 处理文件上传
-    const selectedFilesList = files.map(file => ({
-      name: file.name,
-      size: file.size,
-      file: file
-    }))
-    selectedFiles.value = selectedFilesList
+  if (files.length === 0) return
+
+  // 处理文件上传
+  const selectedFilesList = files.map(file => ({
+    name: file.name,
+    path: getFilePath(file),
+    size: file.size,
+    file: file
+  }))
+  selectedFiles.value = selectedFilesList
+}
+
+// 尝试获取更完整的文件路径
+const getFilePath = (file) => {
+  // 对于文件夹上传，使用webkitRelativePath
+  if (file.webkitRelativePath) {
+    return file.webkitRelativePath;
   }
+
+  // 回退到文件名
+  return file.name;
+}
+
+// 复制路径
+const copyPath = (path) => {
+  navigator.clipboard.writeText(path)
+      .then(() => {
+        alert('路径已复制到剪贴板')
+      })
+      .catch(err => {
+        console.error('复制失败:', err)
+      })
 }
 
 // 处理拖拽
-const handleDragOver = (e) => {
+const handleDragOver = () => {
   isDragging.value = true
 }
 
-const handleDragLeave = (e) => {
+const handleDragLeave = () => {
   isDragging.value = false
 }
 
 const handleDrop = (e) => {
   isDragging.value = false
   const files = Array.from(e.dataTransfer.files)
-  if (props.isFolder) {
-    // 仅处理文件夹
-    const items = e.dataTransfer.items
-    if (items) {
-      const folderItem = Array.from(items).find(item => {
-        const entry = item.webkitGetAsEntry()
-        return entry && entry.isDirectory
-      })
-      if (folderItem) {
-        const entry = folderItem.webkitGetAsEntry()
-        traverseDirectory(entry)
+
+  // 处理文件
+  selectedFiles.value = files.map(file => ({
+    name: file.name,
+    path: file.name,
+    size: file.size,
+    file: file
+  }))
+}
+
+// 开始上传
+const startUpload = async () => {
+  if (selectedFiles.value.length === 0) return
+
+  isUploading.value = true
+  uploadedCount.value = 0
+  totalCount.value = selectedFiles.value.length
+
+  try {
+    for (const file of selectedFiles.value) {
+      currentOperation.value = `上传文件: ${file.name}`
+
+      try {
+        const res = await fileService.uploadSingleFile(file.file, props.currentMenu?.id)
+        if (res.code === 200) {
+          uploadedCount.value++
+        } else {
+          console.error(`上传文件失败: ${file.name}`, res.msg)
+          currentOperation.value = `上传失败: ${file.name} - ${res.msg}`
+        }
+      } catch (error) {
+        console.error(`上传文件出错: ${file.name}`, error)
+        currentOperation.value = `上传出错: ${file.name} - ${error.message}`
       }
     }
-  } else {
-    // 处理文件
-    selectedFiles.value = files.map(file => ({
-      name: file.name,
-      size: file.size,
-      file: file
-    }))
+
+    // 上传完成
+    emit('uploadComplete')
+  } catch (error) {
+    console.error('上传过程出错:', error)
+    currentOperation.value = `错误: ${error.message}`
+  } finally {
+    // 延迟关闭上传状态，让用户看到完成信息
+    setTimeout(() => {
+      isUploading.value = false
+    }, 1000)
   }
-}
-
-// 遍历目录
-const traverseDirectory = async (entry) => {
-  const files = []
-
-  const readEntries = async (dirReader) => {
-    return new Promise((resolve) => {
-      dirReader.readEntries(async (entries) => {
-        for (const entry of entries) {
-          if (entry.isFile) {
-            const file = await getFile(entry)
-            files.push({
-              name: entry.fullPath.slice(1),
-              size: file.size,
-              file: file
-            })
-          } else if (entry.isDirectory) {
-            await traverseDirectory(entry)
-          }
-        }
-        resolve()
-      })
-    })
-  }
-
-  const dirReader = entry.createReader()
-  await readEntries(dirReader)
-  selectedFiles.value = files
-}
-
-// 获取文件
-const getFile = (entry) => {
-  return new Promise((resolve) => {
-    entry.file(resolve)
-  })
 }
 
 // 格式化文件大小
@@ -192,14 +231,10 @@ const formatSize = (size) => {
   return `${value.toFixed(2)} ${units[unitIndex]}`
 }
 
-// 处理上传
-const handleUpload = () => {
-  emit('upload', selectedFiles.value)
-  onClose()
-}
-
 // 关闭对话框
 const onClose = () => {
+  if (isUploading.value) return
+
   selectedFiles.value = []
   emit('close')
 }
@@ -251,8 +286,13 @@ const onClose = () => {
   border-radius: 4px;
 }
 
-.close-btn:hover {
+.close-btn:hover:not(:disabled) {
   background-color: #f1f5f9;
+}
+
+.close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .upload-area {
@@ -303,10 +343,37 @@ const onClose = () => {
   border-bottom: none;
 }
 
-.file-name {
+.file-path-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.file-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.copy-path-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.file-path-container:hover .copy-path-btn {
+  opacity: 1;
+}
+
+.copy-path-btn:hover {
+  background-color: #f1f5f9;
+  color: #3b82f6;
 }
 
 .file-size {
@@ -319,6 +386,42 @@ const onClose = () => {
   border-top: 1px solid #e2e8f0;
   text-align: right;
   font-weight: 500;
+}
+
+.upload-progress {
+  margin: 16px;
+  padding: 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.current-operation {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .upload-dialog-footer {
@@ -342,8 +445,13 @@ const onClose = () => {
   color: #64748b;
 }
 
-.cancel-btn:hover {
+.cancel-btn:hover:not(:disabled) {
   background-color: #f1f5f9;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .upload-btn {
@@ -352,7 +460,7 @@ const onClose = () => {
   color: white;
 }
 
-.upload-btn:hover {
+.upload-btn:hover:not(:disabled) {
   background-color: #2563eb;
 }
 
