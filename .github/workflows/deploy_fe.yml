@@ -15,32 +15,32 @@ jobs:
       BUILD_MODE: ${{ contains(github.ref, 'deploy_test') && 'development' || 'production' }}
 
     steps:
-      - name: Checkout code
+      - name: 拉代码
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 设置node版本
         uses: actions/setup-node@v3
         with:
           node-version: '18.20.5'
 
-      - name: Copy Environment File
+      - name: 选择环境
         run: |
           # 根据分支复制对应的环境文件
           cp ${{ env.ENV_FILE }} .env
 
-      - name: Install Dependencies
+      - name: npm install
         run: npm install
 
-      - name: Build Project
+      - name: npm run build
         run: npm run build -- --mode ${{ env.BUILD_MODE }}
 
-      - name: Build Docker Image
+      - name: 打包 docker 镜像
         run: |
           docker build -t sync-pan-fe .
           docker save -o sync-pan-fe.tar sync-pan-fe
 
       # 使用 sshpass + scp 传输镜像到服务器
-      - name: Copy Docker image to server
+      - name: 将 docker 镜像上传到服务器
         run: |
           sudo apt-get update && sudo apt-get install -y sshpass  # 确保 sshpass 可用
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" scp \
@@ -48,7 +48,7 @@ jobs:
           sync-pan-fe.tar \
           root@8.137.53.199:/root/workspace/sync-pan-fe/sync-pan-fe.tar
 
-      - name: Deploy to Server
+      - name: 进入服务器加载镜像并运行
         run: |
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@8.137.53.199 << 'EOF'
           cd /root/workspace/sync-pan-fe
