@@ -49,7 +49,6 @@ jobs:
           root@8.137.53.199:/root/workspace/sync-pan-fe/sync-pan-fe.tar
 
       - name: Deploy to Server
-        uses: appleboy/ssh-action@v1
         run: |
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@8.137.53.199 << 'EOF'
           cd /root/workspace/sync-pan-fe
