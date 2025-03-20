@@ -156,11 +156,30 @@ export const concurrentUploadFiles = async (files, directoryMap, options = {}) =
         }, 100)
     })
 }
-
+const baseURL = import.meta.env.VITE_API_BASE_URL
+// 下载文件
+export const downloadFile = (fileId) => {
+    console.log('触发下载接口')
+    // 创建一个隐藏的 a 标签来触发下载
+    const downloadLink = document.createElement('a')
+    downloadLink.href = `${baseURL}/file/download?id=${fileId}`
+    // downloadLink.target = '_blank'
+    
+    // 添加到文档中并触发点击
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    
+    // 清理 DOM
+    setTimeout(() => {
+      document.body.removeChild(downloadLink)
+    }, 100)
+}
+  
 export const fileService = {
     uploadSingleFile,
     updateFile,
     deleteFile,
     previewFile,
     concurrentUploadFiles,
+    downloadFile,
 }

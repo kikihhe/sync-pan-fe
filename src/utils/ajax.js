@@ -37,7 +37,7 @@ httpClient.interceptors.response.use(
 
 // 封装 GET 请求
 export const get = (url, params = {}) => {
-    return httpClient.get(url, {params})
+    return httpClient.get(url, { params })
 }
 
 // 封装 POST 请求
@@ -52,7 +52,7 @@ export const put = (url, data = {}) => {
 
 // 封装 DELETE 请求
 export const del = (url, params = {}) => {
-    return httpClient.delete(url, {params})
+    return httpClient.delete(url, { params })
 }
 
 // 封装 upload 请求
