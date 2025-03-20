@@ -4,29 +4,29 @@
       <div class="folder-upload-header">
         <h3>上传文件夹</h3>
         <button class="close-btn" @click="onClose" :disabled="isUploading">
-          <X :size="20"/>
+          <X :size="20" />
         </button>
       </div>
 
       <!-- 上传区域 -->
       <div
-          v-if="!selectedFolder"
-          class="upload-area"
-          @drop.prevent="handleDrop"
-          @dragover.prevent="handleDragOver"
-          @dragleave.prevent="handleDragLeave"
-          :class="{ 'dragging': isDragging }"
-          @click="triggerFolderInput"
+        v-if="!selectedFolder"
+        class="upload-area"
+        @drop.prevent="handleDrop"
+        @dragover.prevent="handleDragOver"
+        @dragleave.prevent="handleDragLeave"
+        :class="{ dragging: isDragging }"
+        @click="triggerFolderInput"
       >
         <input
-            type="file"
-            ref="folderInput"
-            webkitdirectory
-            style="display: none"
-            @change="handleFolderSelect"
+          type="file"
+          ref="folderInput"
+          webkitdirectory
+          style="display: none"
+          @change="handleFolderSelect"
         />
         <div class="upload-icon">
-          <FolderUp :size="48"/>
+          <FolderUp :size="48" />
         </div>
         <p>单击或拖动文件夹到此区域上传</p>
       </div>
@@ -48,7 +48,10 @@
           <span>{{ uploadedCount }}/{{ totalCount }}</span>
         </div>
         <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${uploadProgress}%` }"></div>
+          <div
+            class="progress-bar"
+            :style="{ width: `${uploadProgress}%` }"
+          ></div>
         </div>
         <div class="current-operation">
           {{ currentOperation }}
@@ -59,32 +62,33 @@
       <div v-if="selectedFolder && !isUploading" class="file-tree">
         <div class="file-tree-header">文件夹结构</div>
         <div class="file-tree-content">
-          <div class="tree-node root-node">
-            <FolderOpen :size="16"/>
-            <span>{{ selectedFolder.name }}</span>
-          </div>
-          <div class="tree-children">
-            <template v-for="(node, index) in fileTree" :key="index">
-              <div class="tree-node" :style="{ paddingLeft: `${node.level * 20}px` }">
-                <template v-if="node.isDirectory">
-                  <Folder :size="16"/>
-                </template>
-                <template v-else>
-                  <File :size="16"/>
-                </template>
-                <span :title="node.path">{{ node.name }}</span>
-              </div>
-            </template>
-          </div>
+          <template v-for="(node, index) in fileTree" :key="index">
+            <div
+              class="tree-node"
+              :style="{ paddingLeft: `${node.level * 20}px` }"
+              :class="{ 'file-node': !node.isDirectory }"
+            >
+              <template v-if="node.isDirectory">
+                <FolderOpen v-if="node.level === 0" :size="16" />
+                <Folder v-else :size="16" />
+              </template>
+              <template v-else>
+                <File :size="16" />
+              </template>
+              <span :title="node.path">{{ node.name }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
       <div class="folder-upload-footer">
-        <button class="cancel-btn" @click="onClose" :disabled="isUploading">取消</button>
+        <button class="cancel-btn" @click="onClose" :disabled="isUploading">
+          取消
+        </button>
         <button
-            class="upload-btn"
-            @click="startUpload"
-            :disabled="!selectedFolder || isUploading"
+          class="upload-btn"
+          @click="startUpload"
+          :disabled="!selectedFolder || isUploading"
         >
           开始上传
         </button>
@@ -94,347 +98,460 @@
 </template>
 
 <script setup>
-
-import {ref, computed, reactive} from 'vue'
-import {FolderUp, FolderOpen, Folder, File, X} from 'lucide-vue-next'
-import {fileService} from '@/api/FileService.js'
+import { ref, computed } from "vue";
+import { FolderUp, FolderOpen, Folder, File, X } from "lucide-vue-next";
+import { fileService } from "@/api/FileService.js";
+import { menuService } from "@/api/MenuService.js";
 
 const props = defineProps({
   show: Boolean,
   parentMenuId: [String, Number, null],
   currentMenu: {
     type: Object,
-    default: () => ({ menuLevel: 0 })
-  }
-})
+    default: () => ({ menuLevel: 0 }),
+  },
+});
 
-const emit = defineEmits(['close', 'uploadComplete'])
+const emit = defineEmits(["close", "upload-complete", "upload-error"]);
 
 // 状态变量
-const isDragging = ref(false)
-const folderInput = ref(null)
-const selectedFolder = ref(null)
-const fileTree = ref([])
-const isUploading = ref(false)
-const uploadedCount = ref(0)
-const totalCount = ref(0)
-const currentOperation = ref('')
+const isDragging = ref(false);
+const folderInput = ref(null);
+const selectedFolder = ref(null);
+const fileTree = ref([]);
+const isUploading = ref(false);
+const uploadedCount = ref(0);
+const totalCount = ref(0);
+const currentOperation = ref("");
+const maxConcurrentUploads = 5; // 最大并发上传数
 
 // 上传进度
 const uploadProgress = computed(() => {
-  if (totalCount.value === 0) return 0
-  return Math.round((uploadedCount.value / totalCount.value) * 100)
-})
+  if (totalCount.value === 0) return 0;
+  return Math.round((uploadedCount.value / totalCount.value) * 100);
+});
 
 // 文件和目录计数
 const fileCount = computed(() => {
-  return fileTree.value.filter(node => !node.isDirectory).length
-})
+  return fileTree.value.filter((node) => !node.isDirectory).length;
+});
 
 const dirCount = computed(() => {
-  return fileTree.value.filter(node => node.isDirectory).length
-})
+  return fileTree.value.filter((node) => node.isDirectory).length;
+});
 
 // 总大小
 const totalSize = computed(() => {
   return fileTree.value.reduce((total, node) => {
-    return total + (node.isDirectory ? 0 : node.size)
-  }, 0)
-})
+    return total + (node.isDirectory ? 0 : node.size);
+  }, 0);
+});
 
 // 触发文件夹选择
 const triggerFolderInput = () => {
-  folderInput.value.click()
-}
+  folderInput.value.click();
+};
 
 // 处理文件夹选择
 const handleFolderSelect = (event) => {
-  const files = Array.from(event.target.files)
-  if (files.length === 0) return
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
 
   // 获取根文件夹名称
-  const rootPath = files[0].webkitRelativePath.split('/')[0]
-  selectedFolder.value = {name: rootPath}
+  const rootPath = files[0].webkitRelativePath.split("/")[0];
+  selectedFolder.value = { name: rootPath };
 
   // 构建文件树
-  buildFileTree(files)
-}
+  buildFileTree(files);
+};
 
 // 处理拖拽
 const handleDragOver = () => {
-  isDragging.value = true
-}
+  isDragging.value = true;
+};
 
 const handleDragLeave = () => {
-  isDragging.value = false
-}
+  isDragging.value = false;
+};
 
 const handleDrop = (e) => {
-  isDragging.value = false
-  const items = e.dataTransfer.items
+  isDragging.value = false;
+  const items = e.dataTransfer.items;
 
   if (items) {
     for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      const entry = item.webkitGetAsEntry()
+      const item = items[i];
+      const entry = item.webkitGetAsEntry();
 
       if (entry && entry.isDirectory) {
-        selectedFolder.value = {name: entry.name}
-        traverseDirectory(entry)
-        break
+        selectedFolder.value = { name: entry.name };
+        traverseDirectory(entry);
+        break;
       }
     }
   }
-}
+};
 
 // 遍历目录
-const traverseDirectory = async (entry, path = '') => {
-  fileTree.value = []
-  const traverseHelper = async (entry, path, level) => {
+const traverseDirectory = async (entry, path = "") => {
+  fileTree.value = [];
+
+  // 添加根目录
+  fileTree.value.push({
+    name: entry.name,
+    path: entry.name,
+    isDirectory: true,
+    level: 0,
+  });
+
+  // 创建一个队列来存储待处理的条目
+  const queue = [
+    {
+      entry: entry,
+      path: entry.name,
+      level: 0,
+    },
+  ];
+
+  while (queue.length > 0) {
+    const { entry, path, level } = queue.shift();
+
     if (entry.isFile) {
-      const file = await getFileFromEntry(entry)
+      const file = await getFileFromEntry(entry);
       fileTree.value.push({
         name: entry.name,
-        path: path ? `${path}/${entry.name}` : entry.name,
+        path: path,
         size: file.size,
         isDirectory: false,
         file: file,
-        level
-      })
-    } else if (entry.isDirectory) {
+        level: level,
+      });
+    } else if (entry.isDirectory && level > 0) {
+      // 跳过根目录
       fileTree.value.push({
         name: entry.name,
-        path: path ? `${path}/${entry.name}` : entry.name,
+        path: path,
         isDirectory: true,
-        children: [],
-        level
-      })
+        level: level,
+      });
 
-      const dirReader = entry.createReader()
-      const entries = await readEntriesPromise(dirReader)
+      const dirReader = entry.createReader();
+      const entries = await readEntriesPromise(dirReader);
 
       for (const childEntry of entries) {
-        await traverseHelper(
-            childEntry,
-            path ? `${path}/${entry.name}` : entry.name,
-            level + 1
-        )
+        queue.push({
+          entry: childEntry,
+          path: `${path}/${childEntry.name}`,
+          level: level + 1,
+        });
+      }
+    } else if (entry.isDirectory) {
+      // 根目录
+      const dirReader = entry.createReader();
+      const entries = await readEntriesPromise(dirReader);
+
+      for (const childEntry of entries) {
+        queue.push({
+          entry: childEntry,
+          path: `${path}/${childEntry.name}`,
+          level: level + 1,
+        });
       }
     }
   }
 
-  await traverseHelper(entry, path, 0)
-
-  // 按路径排序
+  // 按层级和类型排序
   fileTree.value.sort((a, b) => {
-    if (a.isDirectory && !b.isDirectory) return -1
-    if (!a.isDirectory && b.isDirectory) return 1
-    return a.path.localeCompare(b.path)
-  })
-}
+    if (a.level !== b.level) return a.level - b.level;
+    if (a.isDirectory && !b.isDirectory) return -1;
+    if (!a.isDirectory && b.isDirectory) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  console.log("构建的文件树:", fileTree.value);
+};
 
 // 从文件列表构建文件树
 const buildFileTree = (files) => {
-  fileTree.value = []
+  fileTree.value = [];
 
-  files.forEach(file => {
-    const pathParts = file.webkitRelativePath.split('/')
-    const fileName = pathParts.pop()
-    const dirPath = pathParts.join('/')
+  // 首先，创建一个完整的路径映射
+  const pathMap = new Map();
 
-    // 添加目录节点
-    for (let i = 1; i < pathParts.length; i++) {
-      const currentPath = pathParts.slice(0, i + 1).join('/')
-      if (!fileTree.value.some(node => node.path === currentPath && node.isDirectory)) {
-        fileTree.value.push({
-          name: pathParts[i],
-          path: currentPath,
-          isDirectory: true,
-          level: i
-        })
-      }
+  // 添加所有文件和目录到映射
+  files.forEach((file) => {
+    const pathParts = file.webkitRelativePath.split("/");
+    const rootFolder = pathParts[0];
+
+    // 确保根文件夹存在
+    if (!pathMap.has(rootFolder)) {
+      pathMap.set(rootFolder, {
+        name: rootFolder,
+        path: rootFolder,
+        isDirectory: true,
+        level: 0,
+        children: [],
+      });
     }
 
-    // 添加文件节点
-    fileTree.value.push({
-      name: fileName,
-      path: file.webkitRelativePath,
-      size: file.size,
-      isDirectory: false,
-      file: file,
-      level: pathParts.length
-    })
-  })
+    // 构建完整路径
+    let currentPath = rootFolder;
+    let parent = pathMap.get(rootFolder);
 
-  // 按路径排序
-  fileTree.value.sort((a, b) => {
-    if (a.isDirectory && !b.isDirectory) return -1
-    if (!a.isDirectory && b.isDirectory) return 1
-    return a.path.localeCompare(b.path)
-  })
-}
+    // 处理中间目录
+    for (let i = 1; i < pathParts.length - 1; i++) {
+      const part = pathParts[i];
+      const newPath = `${currentPath}/${part}`;
 
+      if (!pathMap.has(newPath)) {
+        const newNode = {
+          name: part,
+          path: newPath,
+          isDirectory: true,
+          level: i,
+          children: [],
+        };
+        pathMap.set(newPath, newNode);
+        parent.children.push(newNode);
+      }
+
+      currentPath = newPath;
+      parent = pathMap.get(newPath);
+    }
+
+    // 添加文件
+    if (pathParts.length > 1) {
+      const fileName = pathParts[pathParts.length - 1];
+      const filePath = file.webkitRelativePath;
+
+      const fileNode = {
+        name: fileName,
+        path: filePath,
+        isDirectory: false,
+        level: pathParts.length - 1,
+        size: file.size,
+        file: file,
+      };
+
+      parent.children.push(fileNode);
+    }
+  });
+
+  // 将树形结构转换为扁平列表，保持正确的顺序
+  const flattenTree = (node, result = []) => {
+    result.push(node);
+
+    if (node.children) {
+      // 先处理目录，再处理文件
+      const dirs = node.children.filter((child) => child.isDirectory);
+      const files = node.children.filter((child) => !child.isDirectory);
+
+      // 递归处理目录
+      dirs.forEach((dir) => flattenTree(dir, result));
+
+      // 添加文件
+      files.forEach((file) => result.push(file));
+    }
+
+    return result;
+  };
+
+  // 获取根目录
+  const root = pathMap.get(files[0].webkitRelativePath.split("/")[0]);
+
+  // 先添加根目录
+  fileTree.value.push({
+    name: root.name,
+    path: root.path,
+    isDirectory: true,
+    level: 0,
+  });
+
+  // 然后添加所有子节点
+  const allNodes = [];
+
+  // 先处理目录
+  root.children
+    .filter((child) => child.isDirectory)
+    .forEach((dir) => {
+      flattenTree(dir, allNodes);
+    });
+
+  // 再处理文件
+  root.children
+    .filter((child) => !child.isDirectory)
+    .forEach((file) => {
+      allNodes.push(file);
+    });
+
+  // 添加到文件树
+  fileTree.value = fileTree.value.concat(allNodes);
+
+  console.log("构建的文件树:", fileTree.value);
+};
 // 开始上传
 const startUpload = async () => {
-  if (!selectedFolder.value) return
+  if (!selectedFolder.value) return;
 
-  isUploading.value = true
-  uploadedCount.value = 0
+  isUploading.value = true;
+  uploadedCount.value = 0;
 
-  // 计算总操作数（创建目录 + 上传文件）
-  const directories = fileTree.value.filter(node => node.isDirectory)
-  const files = fileTree.value.filter(node => !node.isDirectory)
-  totalCount.value = directories.length + files.length
+  // 获取文件和目录
+  const directories = fileTree.value.filter((node) => node.isDirectory);
+  const files = fileTree.value.filter((node) => !node.isDirectory);
+
+  // 计算总操作数（创建目录树 + 上传文件）
+  totalCount.value = 1 + files.length; // 1个批量创建目录的操作 + 文件数量
 
   try {
-    // 创建目录映射表，用于跟踪远程目录ID
-    const directoryMap = new Map()
-    // 根目录ID
-    directoryMap.set('', props.parentMenuId)
+    // 1. 构建目录树结构
+    const baseMenuLevel = props.currentMenu?.menuLevel
+      ? props.currentMenu.menuLevel + 1
+      : 1;
+    console.log(
+      "当前菜单级别:",
+      props.currentMenu?.menuLevel,
+      "基础菜单级别:",
+      baseMenuLevel
+    );
 
-    // 按层级排序目录
-    const sortedDirectories = [...directories].sort((a, b) => {
-      return a.level - b.level
-    })
-
-    // 1. 首先创建根目录
-    currentOperation.value = `创建根目录: ${selectedFolder.value.name}`
-
-    // 使用 currentMenu 对象中的 menuLevel + 1 来设置上传根目录的层级
-    const rootMenuLevel = props.currentMenu?.menuLevel ? props.currentMenu.menuLevel + 1 : 1
-
-    const rootDirRes = await fileService.createDirectory({
+    // 添加根目录
+    const directoryTree = {
       menuName: selectedFolder.value.name,
       parentId: props.parentMenuId,
-      menuLevel: rootMenuLevel
-    })
+      menuLevel: baseMenuLevel,
+      displayPath: `/${selectedFolder.value.name}`,
+      children: [],
+    };
 
-    if (rootDirRes.code === 200) {
-      const rootDirId = rootDirRes.data.id
-      directoryMap.set(selectedFolder.value.name, rootDirId)
-      uploadedCount.value++
+    // 按层级排序目录，跳过根目录
+    const sortedDirs = [...directories]
+      .filter((dir) => dir.level > 0)
+      .sort((a, b) => a.level - b.level);
 
-      // 2. 递归创建子目录并上传文件
-      await processDirectories(sortedDirectories, directoryMap, rootMenuLevel)
+    // 处理子目录
+    const pathToNodeMap = new Map();
+    pathToNodeMap.set(selectedFolder.value.name, directoryTree);
 
-      // 3. 上传根目录下的文件
-      const rootFiles = files.filter(file => {
-        const pathParts = file.path.split('/')
-        return pathParts.length === 2 // 根目录/文件名
-      })
+    for (const dir of sortedDirs) {
+      const pathParts = dir.path.split("/");
+      const parentPath = pathParts.slice(0, -1).join("/");
+      const parentNode = pathToNodeMap.get(parentPath);
 
-      await uploadFilesToDirectory(rootFiles, rootDirId)
+      if (parentNode) {
+        const newNode = {
+          menuName: dir.name,
+          parentId: null, // 将由后端填充
+          menuLevel: parentNode.menuLevel + 1,
+          displayPath: `${parentNode.displayPath}/${dir.name}`,
+          children: [],
+        };
 
-      emit('uploadComplete')
-    } else {
-      throw new Error(`创建根目录失败: ${rootDirRes.msg}`)
-    }
-  } catch (error) {
-    console.error('上传过程出错:', error)
-    currentOperation.value = `错误: ${error.message}`
-  } finally {
-    isUploading.value = false
-  }
-}
+        if (!parentNode.children) {
+          parentNode.children = [];
+        }
 
-// 处理目录创建和文件上传
-const processDirectories = async (directories, directoryMap, baseMenuLevel) => {
-  for (const dir of directories) {
-    const pathParts = dir.path.split('/')
-    const parentPath = pathParts.slice(0, -1).join('/')
-    const parentId = directoryMap.get(parentPath)
-
-    if (!parentId) {
-      console.error(`找不到父目录ID: ${parentPath}`)
-      continue
+        parentNode.children.push(newNode);
+        pathToNodeMap.set(dir.path, newNode);
+      }
     }
 
-    // 创建当前目录
-    currentOperation.value = `创建目录: ${dir.path}`
-
-    // 计算当前目录的层级 = 基础层级 + 相对层级
-    const currentMenuLevel = baseMenuLevel + dir.level
-
-    const dirRes = await fileService.createDirectory({
-      menuName: dir.name,
-      parentId: parentId,
-      menuLevel: currentMenuLevel
-    })
+    // 2. 批量创建目录
+    currentOperation.value = `批量创建目录...`;
+    console.log("发送的目录树:", directoryTree);
+    const dirRes = await menuService.batchCreateDirectories(directoryTree);
 
     if (dirRes.code === 200) {
-      const dirId = dirRes.data.id
-      directoryMap.set(dir.path, dirId)
-      uploadedCount.value++
+      uploadedCount.value++;
 
-      // 上传当前目录下的文件
-      const dirFiles = fileTree.value.filter(node => {
-        if (node.isDirectory) return false
-        const nodePathParts = node.path.split('/')
-        const nodeDirPath = nodePathParts.slice(0, -1).join('/')
-        return nodeDirPath === dir.path
-      })
+      // 3. 创建目录ID映射
+      const directoryMap = new Map();
 
-      await uploadFilesToDirectory(dirFiles, dirId)
+      // 递归处理目录映射
+      const processDirMap = (node) => {
+        // 使用displayPath作为键
+        directoryMap.set(node.displayPath.substring(1), node.id); // 去掉开头的/
+
+        if (node.children && node.children.length > 0) {
+          for (const child of node.children) {
+            processDirMap(child);
+          }
+        }
+      };
+
+      processDirMap(dirRes.data);
+      console.log("目录ID映射:", directoryMap);
+
+      // 4. 并发上传文件
+      currentOperation.value = `准备上传文件...`;
+
+      await fileService.concurrentUploadFiles(files, directoryMap, {
+        maxConcurrent: maxConcurrentUploads,
+        onProgress: (completed, total) => {
+          uploadedCount.value = completed + 1; // +1 是因为目录创建操作
+        },
+        onFileStart: (file) => {
+          currentOperation.value = `上传文件: ${file.path}`;
+        },
+        onFileComplete: (file) => {
+          // 文件上传完成的回调
+        },
+        onFileError: (file, error) => {
+          console.error(`上传文件失败: ${file.path}`, error);
+        },
+      });
+
+      // 触发完成事件
+      emit("upload-complete");
     } else {
-      console.error(`创建目录失败: ${dir.path}`, dirRes.msg)
+      throw new Error(`批量创建目录失败: ${dirRes.msg}`);
     }
+  } catch (error) {
+    console.error("上传过程出错:", error);
+    currentOperation.value = `错误: ${error.message}`;
+    emit("upload-error", error);
+  } finally {
+    isUploading.value = false;
   }
-}
-
-// 上传文件到指定目录
-const uploadFilesToDirectory = async (files, directoryId) => {
-  for (const file of files) {
-    currentOperation.value = `上传文件: ${file.path}`
-    try {
-      const res = await fileService.uploadSingleFile(file.file, directoryId)
-      if (res.code === 200) {
-        uploadedCount.value++
-      } else {
-        console.error(`上传文件失败: ${file.path}`, res.msg)
-      }
-    } catch (error) {
-      console.error(`上传文件出错: ${file.path}`, error)
-    }
-  }
-}
+};
 
 // 辅助函数
 const readEntriesPromise = (dirReader) => {
   return new Promise((resolve) => {
-    dirReader.readEntries(entries => {
-      resolve(entries)
-    })
-  })
-}
+    dirReader.readEntries((entries) => {
+      resolve(entries);
+    });
+  });
+};
 
 const getFileFromEntry = (entry) => {
   return new Promise((resolve) => {
-    entry.file(resolve)
-  })
-}
+    entry.file(resolve);
+  });
+};
 
 // 格式化文件大小
 const formatSize = (size) => {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let value = size
-  let unitIndex = 0
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = size;
+  let unitIndex = 0;
 
   while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex++
+    value /= 1024;
+    unitIndex++;
   }
 
-  return `${value.toFixed(2)} ${units[unitIndex]}`
-}
+  return `${value.toFixed(2)} ${units[unitIndex]}`;
+};
 
 // 关闭对话框
 const onClose = () => {
-  if (isUploading.value) return
+  if (isUploading.value) return;
 
-  selectedFolder.value = null
-  fileTree.value = []
-  emit('close')
-}
+  selectedFolder.value = null;
+  fileTree.value = [];
+  emit("close");
+};
 </script>
 
 <style scoped>
@@ -503,7 +620,8 @@ const onClose = () => {
   transition: all 0.2s;
 }
 
-.upload-area:hover, .upload-area.dragging {
+.upload-area:hover,
+.upload-area.dragging {
   border-color: #3b82f6;
   background-color: #f8fafc;
 }
@@ -575,6 +693,10 @@ const onClose = () => {
   margin-left: 0;
 }
 
+.file-node {
+  color: #64748b;
+}
+
 .upload-progress {
   margin: 16px;
   padding: 16px;
@@ -619,7 +741,8 @@ const onClose = () => {
   gap: 8px;
 }
 
-.cancel-btn, .upload-btn {
+.cancel-btn,
+.upload-btn {
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;

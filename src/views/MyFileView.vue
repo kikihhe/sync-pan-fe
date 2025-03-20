@@ -227,7 +227,7 @@
         :show="showFileUploadDialog"
         :is-folder="isUploadingFolder"
         @close="showFileUploadDialog = false"
-        @upload="handleUploadComplete"
+        @file-upload-complete="handleUploadComplete"
     />
     <!-- 上传文件夹 -->
     <FolderUploadDialog
@@ -235,7 +235,7 @@
         :parent-menu-id="currentMenu?.id"
         :current-menu="currentMenu"
         @close="showFolderUploadDialog = false"
-        @upload-complete="handleFolderUploadComplete"
+        @upload-complete="handleUploadComplete"
     />
 
     <!-- 右键菜单 -->
@@ -271,7 +271,7 @@
           删除
         </div>
       </template>
-      <template v-if="contextMenu.type === 'blank'">
+      <template v-if="contextMenu.type === 'file' || contextMenu.type === 'folder'">
         <div
             class="context-menu-item"
             @click="handleContextMenuAction('uploadFile')"
@@ -299,6 +299,7 @@
 </template>
 
 <script setup>
+
 // 导包
 import {ref, computed, onMounted, onUnmounted, watch, nextTick} from "vue";
 import {
@@ -524,27 +525,11 @@ const handleUploadFolder = () => {
   showFolderUploadDialog.value = true
 }
 
-// 处理文件夹上传完成
-const handleFolderUploadComplete = async () => {
-  await loadData()
-  showFolderUploadDialog.value = false
+// 不管是文件/目录，上传完成后都要刷新数据
+const handleUploadComplete = () => {
+  loadData()
 }
 
-// 处理文件上传
-const handleUploadComplete = async (files) => {
-  for (const file of files) {
-    try {
-      const res = await fileService.uploadSingleFile(file.file, currentMenu.value?.id)
-      if (res.code !== 200) {
-        console.error('上传失败:', file.name)
-      }
-    } catch (error) {
-      console.error('上传出错:', error)
-    }
-  }
-  // 重新加载文件列表
-  await loadData()
-}
 // 重命名处理
 const handleRename = (item) => {
   // 先重置其他项的编辑状态
