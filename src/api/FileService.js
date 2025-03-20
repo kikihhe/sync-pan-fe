@@ -29,10 +29,8 @@ const calculateMD5 = (file) => {
 }
 
 export const uploadSingleFile = async (file, menuId) => {
-    // Create form data
     const formData = new FormData()
 
-    // Add file metadata
     formData.append('fileName', file.name)
     formData.append('fileType', file.name.split('.').pop() || '') // Get extension
     formData.append('menuId', menuId || '')

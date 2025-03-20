@@ -226,6 +226,8 @@
     <FileUploadDialog
         :show="showFileUploadDialog"
         :is-folder="isUploadingFolder"
+        :parent-menu-id="currentMenu?.id"
+        :current-menu="currentMenu"
         @close="showFileUploadDialog = false"
         @file-upload-complete="handleUploadComplete"
     />
@@ -472,7 +474,7 @@ const loadData = async () => {
         id: menu.id,
         name: menu.menuName,
         type: "folder",
-        size: "-",
+        size: menu.menuSize || '-',
         updateTime: menu.updateTime,
         createTime: menu.createTime,
         parentId: menu.parentId,

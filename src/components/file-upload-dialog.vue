@@ -78,7 +78,11 @@ import { fileService } from '@/api/FileService.js';
 const props = defineProps({
   show: Boolean,
   isFolder: Boolean,
-  parentMenuId: [String, Number, null]
+  parentMenuId: [String, Number, null],
+  currentMenu: {
+    type: Object,
+    default: () => ({ menuLevel: 0 }),
+  },
 });
 
 const emit = defineEmits(["close", "upload-complete", "upload-error"]);
@@ -170,6 +174,7 @@ const formatSize = (size) => {
 
 // 处理上传
 const handleUpload = async () => {
+  console.log('开始上传, parentMenuId: ', props.parentMenuId)
   try {
     for (const fileItem of selectedFiles.value) {
       const res = await fileService.uploadSingleFile(
