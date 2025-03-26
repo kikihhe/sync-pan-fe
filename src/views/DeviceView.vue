@@ -45,7 +45,7 @@
             </th>
             <th>设备名</th>
             <th>状态</th>
-            <th>Secret Key</th>
+            <th>密钥名称</th>
             <th>最近同步时间</th>
             <th class="actions-cell">操作</th>
           </tr>
@@ -70,26 +70,33 @@
               <span
                 class="status-badge"
                 :class="{
-                  'status-healthy': device.status === 'healthy',
-                  'status-dead': device.status === 'dead',
+                  'status-healthy': device.status === DEVICE_STATUS.HEALTHY,
+                  'status-dead': device.status === DEVICE_STATUS.DEAD,
+                  'status-paused': device.status === DEVICE_STATUS.PAUSED,
+                  'status-register': device.status === DEVICE_STATUS.REGISTER,
                 }"
               >
-                {{ device.status === "healthy" ? "健康" : "死亡" }}
+                {{
+                  device.status === DEVICE_STATUS.HEALTHY
+                    ? "健康"
+                    : device.status === DEVICE_STATUS.PAUSED
+                    ? "暂停"
+                    : device.status === DEVICE_STATUS.REGISTER
+                    ? "注册"
+                    : "死亡"
+                }}
               </span>
             </td>
             <td class="secret-key">
               <span>{{ maskSecretKey(device.secretKey) }}</span>
-              <button class="copy-btn" @click="copySecretKey(device.secretKey)">
-                <Copy :size="14" />
-              </button>
             </td>
             <td>{{ formatDate(device.lastSyncTime) }}</td>
             <td class="actions-cell">
               <button
                 class="action-btn"
-                :class="{ disabled: device.status === 'dead' }"
+                :class="{ disabled: device.status === DEVICE_STATUS.DEAD }"
                 @click="handleStopSync(device)"
-                :disabled="device.status === 'dead'"
+                :disabled="device.status === DEVICE_STATUS.DEAD"
               >
                 <Pause :size="16" />
               </button>
@@ -147,7 +154,7 @@
     >
       <div
         class="context-menu-item"
-        :class="{ disabled: contextMenu.item?.status === 'dead' }"
+        :class="{ disabled: contextMenu.item?.status === DEVICE_STATUS.DEAD }"
         @click="handleContextMenuAction('stopSync')"
       >
         <Pause :size="16" />
@@ -173,11 +180,24 @@
         <span
           class="status-badge"
           :class="{
-            'status-healthy': deviceDetails.device?.status === 'healthy',
-            'status-dead': deviceDetails.device?.status === 'dead',
+            'status-healthy':
+              deviceDetails.device?.status === DEVICE_STATUS.HEALTHY,
+            'status-dead': deviceDetails.device?.status === DEVICE_STATUS.DEAD,
+            'status-paused':
+              deviceDetails.device?.status === DEVICE_STATUS.PAUSED,
+            'status-register':
+              deviceDetails.device?.status === DEVICE_STATUS.REGISTER,
           }"
         >
-          {{ deviceDetails.device?.status === "healthy" ? "健康" : "死亡" }}
+          {{
+            deviceDetails.device?.status === DEVICE_STATUS.HEALTHY
+              ? "健康"
+              : deviceDetails.device?.status === DEVICE_STATUS.PAUSED
+              ? "暂停"
+              : deviceDetails.device?.status === DEVICE_STATUS.REGISTER
+              ? "注册"
+              : "死亡"
+          }}
         </span>
       </div>
       <div class="details-content">
@@ -215,10 +235,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 设备添加对话框 -->
+    <DeviceAddDialog
+      v-model="showAddDeviceDialog"
+      :device-key="newDeviceKey"
+      @confirm="confirmAddDevice"
+      @cancel="cancelAddDevice"
+    />
   </div>
 </template>
-  
-  <script setup>
+
+<script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import {
   Search,
@@ -230,6 +258,14 @@ import {
   ChevronRight,
 } from "lucide-vue-next";
 import { format } from "date-fns";
+import {
+  getDeviceList,
+  addDevice,
+  registerDevice,
+  deleteDevice,
+  stopDeviceSync,
+} from "../api/DeviceService";
+import DeviceAddDialog from "../components/device-add-dialog.vue";
 
 // 状态
 const searchQuery = ref("");
@@ -252,49 +288,17 @@ const deviceDetails = ref({
   device: null,
 });
 
-// 模拟数据
-const mockDevices = [
-  {
-    id: 1,
-    name: "家庭PC",
-    status: "healthy",
-    secretKey: "sk_live_51NXwDbGIvkZdkvTuGipK3Y8aqtPVdh",
-    lastSyncTime: new Date(Date.now() - 1000 * 60 * 5), // 5分钟前
-    ipAddress: "192.168.1.100",
-    os: "Windows 11",
-    createdTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30天前
-  },
-  {
-    id: 2,
-    name: "工作笔记本",
-    status: "healthy",
-    secretKey: "sk_live_51NXwDbGIvkZdkvTuHjpL4Z9brqQWei",
-    lastSyncTime: new Date(Date.now() - 1000 * 60 * 30), // 30分钟前
-    ipAddress: "192.168.1.101",
-    os: "macOS Sonoma",
-    createdTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15), // 15天前
-  },
-  {
-    id: 3,
-    name: "旧手机",
-    status: "dead",
-    secretKey: "sk_live_51NXwDbGIvkZdkvTuIkqM5A0csrRXfj",
-    lastSyncTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // 10天前
-    ipAddress: "192.168.1.102",
-    os: "Android 12",
-    createdTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60天前
-  },
-  {
-    id: 4,
-    name: "服务器",
-    status: "healthy",
-    secretKey: "sk_live_51NXwDbGIvkZdkvTuJlrN6B1dtsSYgk",
-    lastSyncTime: new Date(Date.now() - 1000 * 60 * 2), // 2分钟前
-    ipAddress: "192.168.1.103",
-    os: "Ubuntu 22.04",
-    createdTime: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5天前
-  },
-];
+// 设备添加对话框状态
+const showAddDeviceDialog = ref(false);
+const newDeviceKey = ref("");
+
+// 设备状态常量
+const DEVICE_STATUS = {
+  DEAD: 0,
+  HEALTHY: 1,
+  PAUSED: 2,
+  REGISTER: 3,
+};
 
 // 计算属性
 const isAllSelected = computed(() => {
@@ -313,35 +317,59 @@ const displayedDevices = computed(() => {
 });
 
 // 方法
-const loadData = () => {
-  // 模拟API调用
-  setTimeout(() => {
-    // 过滤
-    let filteredDevices = [...mockDevices];
-    if (searchQuery.value) {
-      filteredDevices = filteredDevices.filter((device) =>
-        device.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-      );
+const loadData = async () => {
+  try {
+    // 调用API获取设备列表
+    const response = await getDeviceList();
+
+    // 检查API响应
+    if (response && response.data) {
+      // 转换后端数据格式为前端需要的格式
+      const apiDevices = response.data.map((device) => ({
+        id: device.id,
+        name: device.deviceName,
+        status: device.status, // 0-死亡，1-健康，2-暂停
+        secretKey: device.secretKey, // 设备密钥key
+        lastSyncTime: device.lastHeartbeat,
+        deviceKey: device.deviceKey,
+        createdTime: device.createTime,
+      }));
+
+      // 过滤
+      let filteredDevices = [...apiDevices];
+      if (searchQuery.value) {
+        filteredDevices = filteredDevices.filter((device) =>
+          device.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        );
+      }
+
+      // 排序
+      if (sortBy.value === "createdTimeDesc") {
+        filteredDevices.sort(
+          (a, b) => new Date(b.createdTime) - new Date(a.createdTime)
+        );
+      } else if (sortBy.value === "createdTimeAsc") {
+        filteredDevices.sort(
+          (a, b) => new Date(a.createdTime) - new Date(b.createdTime)
+        );
+      }
+
+      // 分页
+      const start = (currentPage.value - 1) * pageSize.value;
+      const end = start + pageSize.value;
+
+      devices.value = filteredDevices.slice(start, end);
+      total.value = filteredDevices.length;
+    } else {
+      console.error("获取设备列表失败:", response);
+      devices.value = [];
+      total.value = 0;
     }
-
-    // 排序
-    if (sortBy.value === "createdTimeDesc") {
-      filteredDevices.sort(
-        (a, b) => new Date(b.createdTime) - new Date(a.createdTime)
-      );
-    } else if (sortBy.value === "createdTimeAsc") {
-      filteredDevices.sort(
-        (a, b) => new Date(a.createdTime) - new Date(b.createdTime)
-      );
-    }
-
-    // 分页
-    const start = (currentPage.value - 1) * pageSize.value;
-    const end = start + pageSize.value;
-
-    devices.value = filteredDevices.slice(start, end);
-    total.value = filteredDevices.length;
-  }, 300);
+  } catch (error) {
+    console.error("获取设备列表出错:", error);
+    devices.value = [];
+    total.value = 0;
+  }
 };
 
 const handleSearch = () => {
@@ -354,17 +382,74 @@ const handleSort = () => {
 };
 
 const handleAddDevice = () => {
-  // 实现添加设备逻辑
-  console.log("添加设备");
+  // 生成一个临时的设备密钥，将在确认添加时使用
+  newDeviceKey.value = generateRandomDeviceKey();
+  // 显示设备添加对话框
+  showAddDeviceDialog.value = true;
 };
 
-const handleStopSync = (device) => {
-  if (device.status === "dead") return;
-  console.log("停止同步设备:", device.name);
+// 生成随机设备密钥
+const generateRandomDeviceKey = () => {
+  return (
+    Math.random().toString(36).substring(2, 10) +
+    Math.random().toString(36).substring(2, 10)
+  );
 };
 
-const handleDeleteDevice = (device) => {
-  console.log("删除设备:", device.name);
+// 确认添加设备
+const confirmAddDevice = async (deviceData) => {
+  try {
+    // 调用API注册设备
+    const response = await registerDevice(deviceData.name, deviceData.secretId);
+    if (response && response.code === 200) {
+      alert("添加设备成功");
+      loadData(); // 重新加载设备列表
+    } else {
+      alert("添加设备失败: " + (response?.msg || "未知错误"));
+    }
+  } catch (error) {
+    console.error("添加设备出错:", error);
+    alert("添加设备失败: " + error.message);
+  }
+};
+
+// 取消添加设备
+const cancelAddDevice = () => {
+  showAddDeviceDialog.value = false;
+  newDeviceKey.value = "";
+};
+
+const handleStopSync = async (device) => {
+  if (device.status === DEVICE_STATUS.DEAD) return;
+  try {
+    const response = await stopDeviceSync(device.id);
+    if (response && response.code === 200) {
+      alert("停止同步成功");
+      loadData(); // 重新加载设备列表
+    } else {
+      alert("停止同步失败: " + (response?.msg || "未知错误"));
+    }
+  } catch (error) {
+    console.error("停止同步出错:", error);
+    alert("停止同步失败: " + error.message);
+  }
+};
+
+const handleDeleteDevice = async (device) => {
+  try {
+    if (!confirm(`确定要删除设备 "${device.name}" 吗？`)) return;
+
+    const response = await deleteDevice(device.id);
+    if (response && response.code === 200) {
+      alert("删除设备成功");
+      loadData(); // 重新加载设备列表
+    } else {
+      alert("删除设备失败: " + (response?.msg || "未知错误"));
+    }
+  } catch (error) {
+    console.error("删除设备出错:", error);
+    alert("删除设备失败: " + error.message);
+  }
 };
 
 const handlePageChange = (page) => {
@@ -396,7 +481,7 @@ const showContextMenu = (event, device) => {
 
 const handleContextMenuAction = (action) => {
   const device = contextMenu.value.item;
-  if (action === "stopSync" && device.status !== "dead") {
+  if (action === "stopSync" && device.status !== DEVICE_STATUS.DEAD) {
     handleStopSync(device);
   } else if (action === "delete") {
     handleDeleteDevice(device);
@@ -429,7 +514,8 @@ const hideDeviceDetails = () => {
 
 const maskSecretKey = (key) => {
   if (!key) return "";
-  return key.substring(0, 8) + "..." + key.substring(key.length - 4);
+
+  return key;
 };
 
 const copySecretKey = (key) => {
@@ -458,8 +544,8 @@ onUnmounted(() => {
   document.removeEventListener("click", hideContextMenu);
 });
 </script>
-  
-  <style scoped>
+
+<style scoped>
 .device-view {
   padding: 16px;
   background-color: #f8fafc;
@@ -607,6 +693,16 @@ onUnmounted(() => {
 .status-dead {
   background-color: #fee2e2;
   color: #dc2626;
+}
+
+.status-paused {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.status-register {
+  background-color: #e0f2fe;
+  color: #0284c7;
 }
 
 .secret-key {

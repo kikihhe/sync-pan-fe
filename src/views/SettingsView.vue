@@ -1,16 +1,16 @@
 <template>
   <div class="settings-view">
-    <!-- Header -->
+    
     <div class="settings-header">
       <h1 class="settings-title">设置</h1>
     </div>
 
-    <!-- Main Content -->
+    
     <div class="settings-container">
-      <!-- Sidebar -->
+      
       <nav class="settings-sidebar">
         <RouterLink
-          to="/settings/account"
+          :to="{ name: 'settings-account'}"
           class="nav-item"
           :class="{ active: currentTab === 'account' }"
         >
@@ -18,7 +18,7 @@
           账户
         </RouterLink>
         <RouterLink
-          to="/settings/secret"
+          :to="{ name:'settings-secret'}"
           class="nav-item"
           :class="{ active: currentTab === 'secret' }"
         >
@@ -27,7 +27,7 @@
         </RouterLink>
       </nav>
 
-      <!-- Content Area -->
+      
       <div class="settings-content">
         <RouterView />
       </div>
