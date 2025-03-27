@@ -270,6 +270,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Search,
   PlusCircle,
@@ -522,7 +523,8 @@ const handleContextMenuAction = (action) => {
 
 // 查看设备绑定目录
 const handleViewBindings = (device) => {
-  selectedDeviceId.value = device.id;
+  // 确保deviceId是数字类型
+  selectedDeviceId.value = Number(device.id);
   selectedDeviceName.value = device.name;
   showBoundDialog.value = true;
 };

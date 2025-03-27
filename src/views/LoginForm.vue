@@ -90,6 +90,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import httpClient from '../utils/ajax'
 import BaseModal from '../components/common/BaseModal.vue'
+import { ElMessage } from 'element-plus'
 
 const username = ref('')
 const password = ref('')
@@ -107,13 +108,20 @@ import { userService } from '@/api/UserService.js'
 const router = useRouter()
 
 const handleLogin = async () => {
-  const res = await userService.login(username.value, password.value)
-  if (res.code === 200) {
-    localStorage.setItem('token', res.data)
-    router.push('/home')
-  } else {
-    showErrorModal.value = true
-    errorMessage.value = res.message
+  try {
+    const res = await userService.login(username.value, password.value)
+    if (res.code === 200) {
+      ElMessage.success('登录成功')
+      localStorage.setItem('token', res.data)
+      router.push('/home')
+    } else {
+      ElMessage.error(res.message || '登录失败')
+      showErrorModal.value = true
+      errorMessage.value = res.message
+    }
+  } catch (error) {
+    console.error('登录出错:', error)
+    ElMessage.error('登录失败: ' + error.message)
   }
 };
 

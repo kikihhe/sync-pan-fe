@@ -74,6 +74,7 @@
 import { ref, computed } from "vue";
 import { Upload, FolderUp, X, HelpCircle } from "lucide-vue-next";
 import { fileService } from '@/api/FileService.js';
+import { ElMessage } from "element-plus";
 
 const props = defineProps({
   show: Boolean,
@@ -176,19 +177,32 @@ const formatSize = (size) => {
 const handleUpload = async () => {
   console.log('开始上传, parentMenuId: ', props.parentMenuId)
   try {
+    let successCount = 0;
+    let failCount = 0;
+    
     for (const fileItem of selectedFiles.value) {
       const res = await fileService.uploadSingleFile(
         fileItem.file,
         props.parentMenuId
       );
-      if (res.code !== 200) {
+      if (res.code === 200) {
+        successCount++;
+      } else {
+        failCount++;
         console.error("文件上传失败:", fileItem.name);
+        ElMessage.error(`文件 ${fileItem.name} 上传失败: ${res.message || '未知错误'}`);
       }
     }
+    
+    if (successCount > 0) {
+      ElMessage.success(`成功上传 ${successCount} 个文件`);
+    }
+    
     emit("file-upload-complete");
     onClose();
   } catch (error) {
     console.error("上传过程中出错:", error);
+    ElMessage.error("上传过程中出错: " + error.message);
     emit("upload-error", error);
   }
 };

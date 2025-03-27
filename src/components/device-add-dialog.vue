@@ -216,6 +216,7 @@ java -jar sync-client.jar \
 import { ref, computed, watch } from "vue";
 import { X, Key, Copy, AlertTriangle, Download } from "lucide-vue-next";
 import { listSecret } from "../api/SecretService";
+import { ElMessage } from "element-plus";
 
 const props = defineProps({
   modelValue: {
@@ -296,10 +297,12 @@ const searchSecrets = async () => {
       filteredSecrets.value = response.data || [];
     } else {
       console.error("获取密钥列表失败:", response);
+      ElMessage.error(response.message || "获取密钥列表失败");
       filteredSecrets.value = [];
     }
   } catch (error) {
     console.error("搜索密钥出错:", error);
+    ElMessage.error("搜索密钥出错");
     filteredSecrets.value = [];
   } finally {
     isSearching.value = false;
@@ -331,10 +334,11 @@ const copySecretValue = (value) => {
   navigator.clipboard
     .writeText(value)
     .then(() => {
-      console.log("密钥值已复制到剪贴板");
+      ElMessage.success("密钥值已复制到剪贴板");
     })
     .catch((err) => {
       console.error("复制失败:", err);
+      ElMessage.error("复制失败");
     });
 };
 
@@ -342,10 +346,11 @@ const copyCommand = (command) => {
   navigator.clipboard
     .writeText(command)
     .then(() => {
-      console.log("命令已复制到剪贴板");
+      ElMessage.success("命令已复制到剪贴板");
     })
     .catch((err) => {
       console.error("复制失败:", err);
+      ElMessage.error("复制失败");
     });
 };
 

@@ -85,12 +85,18 @@
               </div>
               <div class="form-group">
                 <label for="remotePath">远程路径</label>
-                <input
-                  type="text"
-                  id="remotePath"
-                  v-model="newBinding.remotePath"
-                  placeholder="输入远程路径，如: /documents"
-                />
+                <div class="input-with-button">
+                  <input
+                    type="text"
+                    id="remotePath"
+                    v-model="newBinding.remotePath"
+                    placeholder="输入远程路径，如: /documents"
+                  />
+                  <button type="button" class="browse-btn" @click="openFolderSelectDialog">
+                    <FolderSearch :size="16" />
+                    浏览
+                  </button>
+                </div>
               </div>
               <div class="form-group">
                 <label for="direction">同步方向</label>
@@ -115,14 +121,22 @@
         </div>
       </div>
     </Transition>
+    
+    <!-- 目录选择对话框 -->
+    <FolderSelectDialog
+      v-model="showFolderSelectDialog"
+      @select="handleFolderSelect"
+    />
   </Teleport>
 </template>
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { X, FolderX, PlusCircle, Trash2 } from "lucide-vue-next";
+import { X, FolderX, PlusCircle, Trash2, FolderSearch } from "lucide-vue-next";
 import { format } from "date-fns";
 import { boundMenuService } from "../api/BoundMenuService";
+import { ElMessage } from "element-plus";
+import FolderSelectDialog from "./folder-select-dialog.vue";
 
 const props = defineProps({
   modelValue: {
@@ -146,6 +160,7 @@ const show = ref(false);
 const isLoading = ref(false);
 const boundMenus = ref([]);
 const showAddForm = ref(false);
+const showFolderSelectDialog = ref(false);
 const newBinding = ref({
   deviceId: null,
   localPath: "",
@@ -173,6 +188,14 @@ watch(
   }
 );
 
+// 监听show变化，同步回父组件
+watch(
+  () => show.value,
+  (val) => {
+    emit("update:modelValue", val);
+  }
+);
+
 // 计算属性
 const canAddBinding = computed(() => {
   return (
@@ -192,10 +215,12 @@ const loadBindings = async () => {
       boundMenus.value = response.data || [];
     } else {
       console.error("获取绑定目录列表失败:", response);
+      ElMessage.error(response.message || "获取绑定目录列表失败");
       boundMenus.value = [];
     }
   } catch (error) {
     console.error("获取绑定目录列表出错:", error);
+    ElMessage.error("获取绑定目录列表出错");
     boundMenus.value = [];
   } finally {
     isLoading.value = false;
@@ -238,7 +263,7 @@ const handleAddBinding = async () => {
   try {
     const response = await boundMenuService.createBinding(newBinding.value);
     if (response && response.code === 200) {
-      alert("添加绑定成功");
+      ElMessage.success("添加绑定成功");
       showAddForm.value = false;
       newBinding.value = {
         deviceId: props.deviceId,
@@ -248,11 +273,11 @@ const handleAddBinding = async () => {
       };
       loadBindings(); // 重新加载绑定列表
     } else {
-      alert("添加绑定失败: " + (response?.msg || "未知错误"));
+      ElMessage.error("添加绑定失败: " + (response?.message || "未知错误"));
     }
   } catch (error) {
     console.error("添加绑定出错:", error);
-    alert("添加绑定失败: " + error.message);
+    ElMessage.error("添加绑定失败: " + error.message);
   }
 };
 
@@ -262,20 +287,33 @@ const handleDeleteBinding = async (binding) => {
 
     const response = await boundMenuService.removeBinding(binding.id);
     if (response && response.code === 200) {
-      alert("删除绑定成功");
+      ElMessage.success("删除绑定成功");
       loadBindings(); // 重新加载绑定列表
       emit("refresh"); // 通知父组件刷新
     } else {
-      alert("删除绑定失败: " + (response?.msg || "未知错误"));
+      ElMessage.error("删除绑定失败: " + (response?.message || "未知错误"));
     }
   } catch (error) {
     console.error("删除绑定出错:", error);
-    alert("删除绑定失败: " + error.message);
+    ElMessage.error("删除绑定失败: " + error.message);
   }
 };
 
 const handleClose = () => {
   emit("update:modelValue", false);
+};
+
+// 打开目录选择对话框
+const openFolderSelectDialog = () => {
+  showFolderSelectDialog.value = true;
+};
+
+// 处理目录选择结果
+const handleFolderSelect = (folder) => {
+  if (folder && folder.id) {
+    // 使用后端返回的displayPath，而不是自己拼接路径
+    newBinding.value.remotePath = folder.displayPath || folder.path;
+  }
 };
 </script>
 
@@ -497,6 +535,30 @@ const handleClose = () => {
   margin-bottom: 8px;
   font-weight: 500;
   color: #1f2937;
+}
+
+.input-with-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.browse-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.browse-btn:hover {
+  background-color: #e2e8f0;
 }
 
 .form-group input,

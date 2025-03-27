@@ -17,10 +17,10 @@
       <nav class="sidebar-nav">
         <router-link 
           v-for="item in menuItems" 
-          :key="item.path"
+          :key="item.name"
           :to="{ name: item.name }"
           class="nav-item"
-          :class="{ 'active': currentPath === item.path }"
+          :class="{ 'active': route.name === item.name }"
         >
           <component :is="item.icon" class="nav-icon" />
           <span v-show="!isSidebarCollapsed">{{ item.title }}</span>
@@ -133,7 +133,7 @@ const router = useRouter()
 
 const currentPath = computed(() => route.path)
 const currentTitle = computed(() => {
-  const currentMenu = menuItems.find(item => item.path === route.path)
+  const currentMenu = menuItems.find(item => item.name === route.name)
   return currentMenu ? currentMenu.title : ''
 })
 
@@ -260,8 +260,8 @@ onUnmounted(() => {
 }
 
 .nav-item.active {
-  background-color: #eff6ff;
-  color: #3b82f6;
+  background-color: #3b82f6;
+  color: white;
   font-weight: 500;
 }
 
