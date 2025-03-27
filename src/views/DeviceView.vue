@@ -101,6 +101,13 @@
                 <Pause :size="16" />
               </button>
               <button
+                class="action-btn"
+                @click="handleViewBindings(device)"
+                title="查看绑定目录"
+              >
+                <FolderOpen :size="16" />
+              </button>
+              <button
                 class="action-btn delete"
                 @click="handleDeleteDevice(device)"
               >
@@ -161,6 +168,13 @@
         停止同步
       </div>
       <div
+        class="context-menu-item"
+        @click="handleContextMenuAction('viewBindings')"
+      >
+        <FolderOpen :size="16" />
+        查看绑定目录
+      </div>
+      <div
         class="context-menu-item delete"
         @click="handleContextMenuAction('delete')"
       >
@@ -203,7 +217,7 @@
       <div class="details-content">
         <div class="details-item">
           <span class="details-label">设备ID:</span>
-          <span class="details-value">{{ deviceDetails.device?.id }}</span>
+          <span class="details-value">{{ deviceDetails.device?.deviceKey }}</span>
         </div>
         <div class="details-item">
           <span class="details-label">Secret Key:</span>
@@ -214,12 +228,12 @@
         <div class="details-item">
           <span class="details-label">IP地址:</span>
           <span class="details-value">{{
-            deviceDetails.device?.ipAddress
+            deviceDetails.device?.ipAddress || '-'
           }}</span>
         </div>
         <div class="details-item">
           <span class="details-label">操作系统:</span>
-          <span class="details-value">{{ deviceDetails.device?.os }}</span>
+          <span class="details-value">{{ deviceDetails.device?.os || '-' }}</span>
         </div>
         <div class="details-item">
           <span class="details-label">创建时间:</span>
@@ -243,6 +257,14 @@
       @confirm="confirmAddDevice"
       @cancel="cancelAddDevice"
     />
+    
+    <!-- 设备绑定目录对话框 -->
+    <DeviceBoundDialog
+      v-model="showBoundDialog"
+      :device-id="selectedDeviceId"
+      :device-name="selectedDeviceName"
+      @refresh="loadData"
+    />
   </div>
 </template>
 
@@ -256,6 +278,7 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
+  FolderOpen,
 } from "lucide-vue-next";
 import { format } from "date-fns";
 import {
@@ -266,6 +289,7 @@ import {
   stopDeviceSync,
 } from "../api/DeviceService";
 import DeviceAddDialog from "../components/device-add-dialog.vue";
+import DeviceBoundDialog from "../components/device-bound-dialog.vue";
 
 // 状态
 const searchQuery = ref("");
@@ -291,6 +315,11 @@ const deviceDetails = ref({
 // 设备添加对话框状态
 const showAddDeviceDialog = ref(false);
 const newDeviceKey = ref("");
+
+// 设备绑定目录对话框状态
+const showBoundDialog = ref(false);
+const selectedDeviceId = ref(null);
+const selectedDeviceName = ref("");
 
 // 设备状态常量
 const DEVICE_STATUS = {
@@ -485,8 +514,17 @@ const handleContextMenuAction = (action) => {
     handleStopSync(device);
   } else if (action === "delete") {
     handleDeleteDevice(device);
+  } else if (action === "viewBindings") {
+    handleViewBindings(device);
   }
   contextMenu.value.show = false;
+};
+
+// 查看设备绑定目录
+const handleViewBindings = (device) => {
+  selectedDeviceId.value = device.id;
+  selectedDeviceName.value = device.name;
+  showBoundDialog.value = true;
 };
 
 const hideContextMenu = (event) => {

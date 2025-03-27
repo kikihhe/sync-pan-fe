@@ -129,6 +129,15 @@
                       <Copy :size="14" />
                     </button>
                   </div>
+                  <div class="download-button-container">
+                    <button
+                      class="download-btn"
+                      @click="downloadClient"
+                    >
+                      <Download :size="14" />
+                      直接下载客户端
+                    </button>
+                  </div>
                 </div>
 
                 <div class="guide-section">
@@ -205,7 +214,7 @@ java -jar sync-client.jar \
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { X, Key, Copy, AlertTriangle } from "lucide-vue-next";
+import { X, Key, Copy, AlertTriangle, Download } from "lucide-vue-next";
 import { listSecret } from "../api/SecretService";
 
 const props = defineProps({
@@ -269,7 +278,7 @@ const canProceed = computed(() => {
 const downloadCommand = computed(() => {
   // 检测用户平台，这里简单使用navigator.platform
   const isWindows = navigator.platform.indexOf("Win") > -1;
-  const downloadUrl = "http://123/sync-client.jar"; // 替换为实际的下载链接
+  const downloadUrl = "https://xiaohetypora.oss-cn-shanghai.aliyuncs.com/client-1.0-SNAPSHOT.jar"; // 客户端下载链接
 
   if (isWindows) {
     return `curl -o sync-client.jar ${downloadUrl}`;
@@ -338,6 +347,16 @@ const copyCommand = (command) => {
     .catch((err) => {
       console.error("复制失败:", err);
     });
+};
+
+const downloadClient = () => {
+  const downloadUrl = "https://xiaohetypora.oss-cn-shanghai.aliyuncs.com/client-1.0-SNAPSHOT.jar";
+  const downloadLink = document.createElement('a');
+  downloadLink.href = downloadUrl;
+  downloadLink.download = "sync-client.jar";
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
 };
 
 const nextStep = () => {
@@ -723,6 +742,30 @@ const handleFinish = () => {
 
 .code-block .copy-btn:hover {
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.download-button-container {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.download-btn:hover {
+  background-color: #2563eb;
 }
 
 .important-note {
