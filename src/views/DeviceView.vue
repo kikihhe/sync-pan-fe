@@ -535,22 +535,45 @@ const hideContextMenu = (event) => {
   }
 };
 
+// 定时器引用
+const detailsTimer = ref(null);
+
 const showDeviceDetails = (device) => {
   // 获取鼠标位置
   const x = event.clientX + 10;
   const y = event.clientY + 10;
 
-  deviceDetails.value = {
-    show: true,
-    x,
-    y,
-    device,
-  };
+  // 清除之前的定时器
+  if (detailsTimer.value) {
+    clearTimeout(detailsTimer.value);
+  }
+
+  // 设置5秒延时显示
+  detailsTimer.value = setTimeout(() => {
+    deviceDetails.value = {
+      show: true,
+      x,
+      y,
+      device,
+    };
+  }, 5000);
 };
 
 const hideDeviceDetails = () => {
+  // 清除定时器
+  if (detailsTimer.value) {
+    clearTimeout(detailsTimer.value);
+    detailsTimer.value = null;
+  }
   deviceDetails.value.show = false;
 };
+
+// 在组件卸载时清除定时器
+onUnmounted(() => {
+  if (detailsTimer.value) {
+    clearTimeout(detailsTimer.value);
+  }
+});
 
 const maskSecretKey = (key) => {
   if (!key) return "";
