@@ -6,7 +6,7 @@
           <div class="modal-header">
             <h3 class="modal-title">设备绑定目录</h3>
             <button class="btn-close" @click="handleClose">
-              <X :size="20" />
+              <X :size="20"/>
             </button>
           </div>
 
@@ -15,25 +15,25 @@
               <div class="loading-spinner"></div>
               <p>加载中...</p>
             </div>
-            
+
             <div v-else-if="boundMenus.length === 0" class="empty-state">
-              <FolderX :size="48" class="empty-icon" />
+              <FolderX :size="48" class="empty-icon"/>
               <p>该设备暂无绑定目录</p>
               <button class="btn-primary add-btn" @click="showAddBindingForm">
-                <PlusCircle :size="16" />
+                <PlusCircle :size="16"/>
                 添加绑定
               </button>
             </div>
-            
+
             <div v-else>
               <div class="toolbar">
                 <h4>{{ deviceName }} 的绑定目录</h4>
                 <button class="btn-primary add-btn" @click="showAddBindingForm">
-                  <PlusCircle :size="16" />
+                  <PlusCircle :size="16"/>
                   添加绑定
                 </button>
               </div>
-              
+
               <div class="bound-list">
                 <div v-for="item in boundMenus" :key="item.id" class="bound-item">
                   <div class="bound-info">
@@ -64,36 +64,36 @@
                   </div>
                   <div class="bound-actions">
                     <button class="action-btn delete" @click="handleDeleteBinding(item)">
-                      <Trash2 :size="16" />
+                      <Trash2 :size="16"/>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <!-- 添加绑定表单 -->
             <div v-if="showAddForm" class="add-binding-form">
               <h4>添加绑定目录</h4>
               <div class="form-group">
                 <label for="localPath">本地路径</label>
                 <input
-                  type="text"
-                  id="localPath"
-                  v-model="newBinding.localPath"
-                  placeholder="输入本地路径，如: D:\Documents"
+                    type="text"
+                    id="localPath"
+                    v-model="newBinding.localPath"
+                    placeholder="输入本地路径，如: D:\Documents"
                 />
               </div>
               <div class="form-group">
                 <label for="remotePath">远程路径</label>
                 <div class="input-with-button">
                   <input
-                    type="text"
-                    id="remotePath"
-                    v-model="newBinding.remotePath"
-                    placeholder="输入远程路径，如: /documents"
+                      type="text"
+                      id="remotePath"
+                      v-model="newBinding.remotePath"
+                      placeholder="输入远程路径，如: /documents"
                   />
                   <button type="button" class="browse-btn" @click="openFolderSelectDialog">
-                    <FolderSearch :size="16" />
+                    <FolderSearch :size="16"/>
                     浏览
                   </button>
                 </div>
@@ -108,10 +108,10 @@
               </div>
               <div class="form-actions">
                 <button class="btn-secondary" @click="cancelAddBinding">取消</button>
-                <button 
-                  class="btn-primary" 
-                  @click="handleAddBinding"
-                  :disabled="!canAddBinding"
+                <button
+                    class="btn-primary"
+                    @click="handleAddBinding"
+                    :disabled="!canAddBinding"
                 >
                   确认添加
                 </button>
@@ -121,21 +121,21 @@
         </div>
       </div>
     </Transition>
-    
+
     <!-- 目录选择对话框 -->
     <FolderSelectDialog
-      v-model="showFolderSelectDialog"
-      @select="handleFolderSelect"
+        v-model="showFolderSelectDialog"
+        @select="handleFolderSelect"
     />
   </Teleport>
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
-import { X, FolderX, PlusCircle, Trash2, FolderSearch } from "lucide-vue-next";
-import { format } from "date-fns";
-import { boundMenuService } from "../api/BoundMenuService";
-import { ElMessage } from "element-plus";
+import {ref, computed, watch} from "vue";
+import {X, FolderX, PlusCircle, Trash2, FolderSearch} from "lucide-vue-next";
+import {format} from "date-fns";
+import {boundMenuService} from "../api/BoundMenuService";
+import {ElMessage} from "element-plus";
 import FolderSelectDialog from "./folder-select-dialog.vue";
 
 const props = defineProps({
@@ -170,44 +170,44 @@ const newBinding = ref({
 
 // 监听props变化
 watch(
-  () => props.modelValue,
-  (val) => {
-    show.value = val;
-    if (val && props.deviceId) {
-      // 重置状态
-      showAddForm.value = false;
-      newBinding.value = {
-        deviceId: props.deviceId,
-        localPath: "",
-        remotePath: "",
-        direction: 0,
-      };
-      // 加载绑定目录列表
-      loadBindings();
+    () => props.modelValue,
+    (val) => {
+      show.value = val;
+      if (val && props.deviceId) {
+        // 重置状态
+        showAddForm.value = false;
+        newBinding.value = {
+          deviceId: props.deviceId,
+          localPath: "",
+          remotePath: "",
+          direction: 0,
+        };
+        // 加载绑定目录列表
+        loadBindings();
+      }
     }
-  }
 );
 
 // 监听show变化，同步回父组件
 watch(
-  () => show.value,
-  (val) => {
-    emit("update:modelValue", val);
-  }
+    () => show.value,
+    (val) => {
+      emit("update:modelValue", val);
+    }
 );
 
 // 计算属性
 const canAddBinding = computed(() => {
   return (
-    newBinding.value.localPath.trim() !== "" &&
-    newBinding.value.remotePath.trim() !== ""
+      newBinding.value.localPath.trim() !== "" &&
+      newBinding.value.remotePath.trim() !== ""
   );
 });
 
 // 方法
 const loadBindings = async () => {
   if (!props.deviceId) return;
-  
+
   isLoading.value = true;
   try {
     const response = await boundMenuService.getDeviceBindings(props.deviceId);
@@ -309,11 +309,12 @@ const openFolderSelectDialog = () => {
 };
 
 // 处理目录选择结果
-const handleFolderSelect = (folder) => {
-  if (folder && folder.id) {
-    // 使用后端返回的displayPath，而不是自己拼接路径
-    newBinding.value.remotePath = folder.displayPath || folder.path;
-  }
+const handleFolderSelect = (menu) => {
+  // newBinding.remotePath = menu.displayPath;
+  newBinding.value = {
+    ...newBinding.value,
+    remotePath: menu.displayPath
+  };
 };
 </script>
 
@@ -388,8 +389,12 @@ const handleFolderSelect = (folder) => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 空状态 */

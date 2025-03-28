@@ -6,7 +6,7 @@
           <div class="modal-header">
             <h3 class="modal-title">选择目录</h3>
             <button class="btn-close" @click="handleClose">
-              <X :size="20" />
+              <X :size="20"/>
             </button>
           </div>
 
@@ -14,26 +14,26 @@
             <!-- 导航栏 -->
             <div class="navigation-bar">
               <button
-                class="back-btn"
-                @click="navigateBack"
-                :disabled="navigationHistory.length === 0"
+                  class="back-btn"
+                  @click="navigateBack"
+                  :disabled="navigationHistory.length === 0"
               >
-                <ChevronLeft :size="16" />
+                <ChevronLeft :size="16"/>
                 返回上一级
               </button>
               <div class="breadcrumb">
                 <template v-for="(item, index) in currentPath" :key="index">
                   <span
-                    class="breadcrumb-item"
-                    :class="{ clickable: index < currentPath.length - 1 }"
-                    @click="navigateToPath(index)"
+                      class="breadcrumb-item"
+                      :class="{ clickable: index < currentPath.length - 1 }"
+                      @click="navigateToPath(index)"
                   >
                     {{ item.name }}
                   </span>
                   <span
-                    v-if="index < currentPath.length - 1"
-                    class="breadcrumb-separator"
-                    >/</span
+                      v-if="index < currentPath.length - 1"
+                      class="breadcrumb-separator"
+                  >/</span
                   >
                 </template>
               </div>
@@ -42,12 +42,12 @@
             <!-- 搜索栏 -->
             <div class="search-bar">
               <div class="search-box">
-                <Search class="search-icon" :size="20" />
+                <Search class="search-icon" :size="20"/>
                 <input
-                  type="text"
-                  v-model="searchQuery"
-                  placeholder="搜索文件夹..."
-                  @keyup.enter="handleSearch"
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="搜索文件夹..."
+                    @keyup.enter="handleSearch"
                 />
               </div>
               <button class="search-btn" @click="handleSearch">搜索</button>
@@ -59,19 +59,19 @@
               <p>加载中...</p>
             </div>
             <div v-else-if="folders.length === 0" class="empty-state">
-              <FolderX :size="48" class="empty-icon" />
+              <FolderX :size="48" class="empty-icon"/>
               <p>暂无目录</p>
             </div>
             <div v-else class="folder-list">
               <div
-                v-for="folder in folders"
-                :key="folder.id"
-                class="folder-item"
-                :class="{ 'folder-item-selected': selectedFolder && selectedFolder.id === folder.id }"
-                @click="selectFolder(folder)"
-                @dblclick="enterFolder(folder)"
+                  v-for="folder in folders"
+                  :key="folder.id"
+                  class="folder-item"
+                  :class="{ 'folder-item-selected': selectedFolder && selectedFolder.id === folder.id }"
+                  @click="selectFolder(folder)"
+                  @dblclick="enterFolder(folder)"
               >
-                <Folder class="folder-icon" :size="20" />
+                <Folder class="folder-icon" :size="20"/>
                 <span class="folder-name">{{ folder.name }}</span>
               </div>
             </div>
@@ -81,24 +81,24 @@
               <div class="pagination-info">共 {{ total }} 项</div>
               <div class="pagination-controls">
                 <button
-                  class="page-btn"
-                  :disabled="currentPage === 1"
-                  @click="handlePageChange(currentPage - 1)"
+                    class="page-btn"
+                    :disabled="currentPage === 1"
+                    @click="handlePageChange(currentPage - 1)"
                 >
-                  <ChevronLeft :size="16" />
+                  <ChevronLeft :size="16"/>
                 </button>
                 <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
                 <button
-                  class="page-btn"
-                  :disabled="currentPage === totalPages"
-                  @click="handlePageChange(currentPage + 1)"
+                    class="page-btn"
+                    :disabled="currentPage === totalPages"
+                    @click="handlePageChange(currentPage + 1)"
                 >
-                  <ChevronRight :size="16" />
+                  <ChevronRight :size="16"/>
                 </button>
                 <select
-                  v-model="pageSize"
-                  @change="handlePageSizeChange"
-                  class="page-size-select"
+                    v-model="pageSize"
+                    @change="handlePageSizeChange"
+                    class="page-size-select"
                 >
                   <option :value="10">10条/页</option>
                   <option :value="20">20条/页</option>
@@ -111,9 +111,9 @@
           <div class="modal-footer">
             <button class="btn-secondary" @click="handleClose">取消</button>
             <button
-              class="btn-primary"
-              @click="handleSelect"
-              :disabled="!currentMenu"
+                class="btn-primary"
+                @click="handleSelect"
+                :disabled="!currentMenu"
             >
               选择此目录
             </button>
@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import {ref, computed, watch} from "vue";
 import {
   X,
   FolderX,
@@ -134,8 +134,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-vue-next";
-import { menuService } from "@/api/MenuService.js";
-import { ElMessage } from "element-plus";
+import {menuService} from "@/api/MenuService.js";
+import {ElMessage} from "element-plus";
 
 const props = defineProps({
   modelValue: {
@@ -160,34 +160,34 @@ const currentMenu = ref(null);
 // 历史路径
 const navigationHistory = ref([]);
 // 导航栏的当前进入的目录路径
-const currentPath = ref([{ id: null, name: "全部文件" }]);
+const currentPath = ref([{id: null, name: "全部文件"}]);
 // 当前选中的文件夹
 const selectedFolder = ref(null);
 
 // 监听props变化
 watch(
-  () => props.modelValue,
-  (val) => {
-    show.value = val;
-    if (val) {
-      // 重置状态
-      currentPage.value = 1;
-      searchQuery.value = "";
-      currentMenu.value = null;
-      navigationHistory.value = [];
-      currentPath.value = [{ id: null, name: "全部文件" }];
-      // 加载目录列表
-      loadData();
+    () => props.modelValue,
+    (val) => {
+      show.value = val;
+      if (val) {
+        // 重置状态
+        currentPage.value = 1;
+        searchQuery.value = "";
+        currentMenu.value = null;
+        navigationHistory.value = [];
+        currentPath.value = [{id: null, name: "全部文件"}];
+        // 加载目录列表
+        loadData();
+      }
     }
-  }
 );
 
 // 监听show变化，同步回父组件
 watch(
-  () => show.value,
-  (val) => {
-    emit("update:modelValue", val);
-  }
+    () => show.value,
+    (val) => {
+      emit("update:modelValue", val);
+    }
 );
 
 // 计算属性
@@ -199,7 +199,6 @@ const totalPages = computed(() => {
 const loadData = async () => {
   isLoading.value = true;
   try {
-    console.log('开始加载目录数据');
     const params = {
       pageNum: currentPage.value, // 后端从1开始计数
       pageSize: pageSize.value,
@@ -221,17 +220,17 @@ const loadData = async () => {
       if (data.currentMenu?.id) {
         // 重新构建导航路径，避免重复
         currentPath.value = [
-          { id: null, name: "全部文件" }, // 始终添加根目录
-          ...navigationHistory.value.map((h) => ({ id: h.id, name: h.menuName })),
+          {id: null, name: "全部文件"}, // 始终添加根目录
+          ...navigationHistory.value.map((h) => ({id: h.id, name: h.menuName})),
         ];
-        
+
         // 只有当当前菜单不在导航历史中时才添加
         const isInHistory = navigationHistory.value.some(h => h.id === data.currentMenu.id);
         if (!isInHistory) {
-          currentPath.value.push({ id: data.currentMenu.id, name: data.currentMenu.menuName });
+          currentPath.value.push({id: data.currentMenu.id, name: data.currentMenu.menuName});
         }
       } else {
-        currentPath.value = [{ id: null, name: "全部文件" }];
+        currentPath.value = [{id: null, name: "全部文件"}];
       }
 
       folders.value = (data.subMenuList || []).map((menu) => ({
@@ -239,25 +238,25 @@ const loadData = async () => {
         name: menu.menuName,
         parentId: menu.parentId,
         menuLevel: menu.menuLevel,
+        displayPath: menu.displayPath,
+        owner: menu.owner,
+        menuSize: menu.menuSize || 0,
       }));
 
       total.value = data.total;
       currentPage.value = data.pageNum;
       pageSize.value = data.pageSize;
     } else {
-      console.error("获取目录列表失败:", res);
       ElMessage.error(res?.message || "获取目录列表失败");
       folders.value = [];
       total.value = 0;
     }
   } catch (error) {
-    console.error("获取目录列表出错:", error);
     ElMessage.error("获取目录列表出错: " + (error.message || error));
     folders.value = [];
     total.value = 0;
   } finally {
     isLoading.value = false;
-    console.log("目录加载完成，状态:", { folders: folders.value.length, total: total.value });
   }
 };
 
@@ -294,21 +293,21 @@ const navigateBack = async () => {
 const navigateToPath = async (index) => {
   // 如果点击的是"全部文件"
   if (index === 0) {
-    currentPath.value = [{ id: null, name: "全部文件" }];
+    currentPath.value = [{id: null, name: "全部文件"}];
     currentMenu.value = null;
     navigationHistory.value = [];
   } else if (index < currentPath.value.length - 1) {
     // 计算需要保留的历史记录数量
     // 减1是因为要排除"全部文件"
     const historyToKeep = Math.max(0, index - 1);
-    
+
     // 更新导航历史
     navigationHistory.value = navigationHistory.value.slice(0, historyToKeep);
-    
+
     // 设置当前菜单为点击的路径项
     currentMenu.value = currentPath.value[index];
   }
-  
+
   // 重置选中状态
   selectedFolder.value = null;
   // 重置页码
@@ -322,15 +321,14 @@ const selectFolder = (folder) => {
   // 保存当前选中的文件夹信息，包括id、name和可能存在的displayPath
   // 查找完整的文件夹信息
   const folderInfo = folders.value.find(f => f.id === folder.id);
-  
+
   // 设置当前选中的文件夹，但不进入
-  currentMenu.value = { 
-    id: folder.id, 
+  currentMenu.value = {
+    id: folder.id,
     menuName: folder.name,
-    // 如果文件夹有displayPath属性，保留它
-    ...(folderInfo?.displayPath && { displayPath: folderInfo.displayPath })
+    displayPath: folder.displayPath,
   };
-  
+
   // 更新选中状态
   selectedFolder.value = folder;
 };
@@ -342,7 +340,7 @@ const enterFolder = async (folder) => {
     navigationHistory.value.push(currentMenu.value);
   }
   // 设置新的当前菜单
-  currentMenu.value = { id: folder.id, menuName: folder.name };
+  currentMenu.value = {id: folder.id, menuName: folder.name};
   // 重置页码
   currentPage.value = 1;
   // 更新选中状态
@@ -357,30 +355,32 @@ const handleClose = () => {
 
 const handleSelect = () => {
   if (!currentMenu.value) return;
-  
+
   // 获取当前路径的字符串表示
   const pathString = currentPath.value
-    .slice(1) // 排除"全部文件"
-    .map((item) => item.name)
-    .join("/");
+      .slice(1) // 排除"全部文件"
+      .map((item) => item.name)
+      .join("/");
 
   // 构建完整路径
   const fullPath = "/" + pathString;
-  
-  // 发送选择事件，包含当前目录ID和路径
-  // 优先使用后端返回的displayPath，如果没有则使用拼接的路径
-  emit("select", {
-    id: currentMenu.value?.id,
-    path: fullPath, // 确保路径以/开头
-    displayPath: currentMenu.value?.displayPath || fullPath
-  });
-  
-  console.log('选择目录:', {
-    id: currentMenu.value?.id,
-    path: fullPath,
-    displayPath: currentMenu.value?.displayPath || fullPath
-  });
-  
+
+  // 如果选择了列表中的某个文件夹，使用该文件夹的信息
+  if (selectedFolder.value) {
+    emit("select", {
+      id: selectedFolder.value.id,
+      name: selectedFolder.value.name,
+      displayPath: selectedFolder.value.displayPath,
+    });
+  } else {
+    // 否则使用当前目录的信息
+    emit("select", {
+      id: currentMenu.value.id,
+      name: currentMenu.value.name,
+      displayPath: currentMenu.value.displayPath,
+    });
+  }
+
   emit("update:modelValue", false);
 };
 </script>
@@ -553,8 +553,12 @@ const handleSelect = () => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 空状态 */
