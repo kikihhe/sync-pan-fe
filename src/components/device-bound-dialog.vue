@@ -44,7 +44,7 @@
                       </div>
                       <div class="path-item">
                         <span class="path-label">远程路径:</span>
-                        <span class="path-value">{{ item.remotePath }}</span>
+                        <span class="path-value">{{ item.remoteMenuPath }}</span>
                       </div>
                     </div>
                     <div class="bound-details">
@@ -84,12 +84,12 @@
                 />
               </div>
               <div class="form-group">
-                <label for="remotePath">远程路径</label>
+                <label for="remoteMenuPath">远程路径</label>
                 <div class="input-with-button">
                   <input
                       type="text"
-                      id="remotePath"
-                      v-model="newBinding.remotePath"
+                      id="remoteMenuPath"
+                      v-model="newBinding.remoteMenuPath"
                       placeholder="输入远程路径，如: /documents"
                   />
                   <button type="button" class="browse-btn" @click="openFolderSelectDialog">
@@ -164,7 +164,7 @@ const showFolderSelectDialog = ref(false);
 const newBinding = ref({
   deviceId: null,
   localPath: "",
-  remotePath: "",
+  remoteMenuPath: "",
   direction: 0, // 默认双向同步
 });
 
@@ -179,7 +179,7 @@ watch(
         newBinding.value = {
           deviceId: props.deviceId,
           localPath: "",
-          remotePath: "",
+          remoteMenuPath: "",
           direction: 0,
         };
         // 加载绑定目录列表
@@ -200,7 +200,7 @@ watch(
 const canAddBinding = computed(() => {
   return (
       newBinding.value.localPath.trim() !== "" &&
-      newBinding.value.remotePath.trim() !== ""
+      newBinding.value.remoteMenuPath.trim() !== ""
   );
 });
 
@@ -254,7 +254,7 @@ const cancelAddBinding = () => {
   newBinding.value = {
     deviceId: props.deviceId,
     localPath: "",
-    remotePath: "",
+    remoteMenuPath: "",
     direction: 0,
   };
 };
@@ -268,7 +268,7 @@ const handleAddBinding = async () => {
       newBinding.value = {
         deviceId: props.deviceId,
         localPath: "",
-        remotePath: "",
+        remoteMenuPath: "",
         direction: 0,
       };
       loadBindings(); // 重新加载绑定列表
@@ -310,10 +310,10 @@ const openFolderSelectDialog = () => {
 
 // 处理目录选择结果
 const handleFolderSelect = (menu) => {
-  // newBinding.remotePath = menu.displayPath;
   newBinding.value = {
     ...newBinding.value,
-    remotePath: menu.displayPath
+    remoteMenuId: menu.id,
+    remoteMenuPath: menu.displayPath
   };
 };
 </script>
