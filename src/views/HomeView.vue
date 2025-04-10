@@ -94,7 +94,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   FolderOpen, 
-  Upload, 
   Laptop,
   Github,
   User,
