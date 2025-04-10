@@ -157,6 +157,21 @@ export const concurrentUploadFiles = async (files, directoryMap, options = {}) =
     })
 }
 const baseURL = import.meta.env.VITE_API_BASE_URL
+// 获取已删除文件列表
+export const getDeletedFiles = async (params) => {
+    return await httpClient.post('/file/getDeletedFile', params);
+};
+
+// 彻底删除文件
+export const permanentDeleteFile = async (fileId) => {
+    return await httpClient.post('/file/permanentDelete', { fileId });
+};
+
+// 恢复已删除文件
+export const restoreDeletedFile = async (fileId, targetMenuId) => {
+    return await httpClient.post('/file/recycle', { fileId, targetMenuId });
+};
+
 // 下载文件
 export const downloadFile = (fileId) => {
     console.log('触发下载接口')
@@ -182,4 +197,7 @@ export const fileService = {
     previewFile,
     concurrentUploadFiles,
     downloadFile,
+    getDeletedFiles,
+    permanentDeleteFile,
+    restoreDeletedFile,
 }

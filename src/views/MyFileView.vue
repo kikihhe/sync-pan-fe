@@ -336,6 +336,8 @@ import { fileService } from "@/api/FileService.js";
 import FileUploadDialog from "@/components/file-upload-dialog.vue";
 // 导入新组件
 import FolderUploadDialog from "@/components/folder-upload-dialog.vue";
+// 导入Element Plus组件
+import { ElMessage, ElMessageBox } from "element-plus";
 
 // 状态
 const searchQuery = ref("");
@@ -568,26 +570,47 @@ const handleRename = (item) => {
 
 const handleDelete = async (item) => {
   try {
-    let res;
-    if (item.type === "folder") {
-      // 删除目录
-      res = await menuService.deleteMenu(item.id);
-    } else {
-      // 删除文件
-      res = await fileService.deleteFile({ fileList: [item.id] });
-    }
+    // 添加确认对话框
+    const confirmMessage = item.type === "folder" ? 
+      "是否将此文件夹移入回收站？" : 
+      "是否将此文件移入回收站？";
+    
+    const result = await ElMessageBox.confirm(
+      confirmMessage,
+      "提示",
+      {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
+      }
+    );
+    
+    if (result === "confirm") {
+      let res;
+      if (item.type === "folder") {
+        // 删除目录
+        res = await menuService.deleteMenu(item.id);
+      } else {
+        // 删除文件
+        res = await fileService.deleteFile({ fileList: [item.id] });
+      }
 
-    if (res.code === 200) {
-      // 清空选中项
-      selectedItems.value = selectedItems.value.filter((id) => id !== item.id);
-    } else {
-      console.error("删除失败: ", res.msg);
+      if (res.code === 200) {
+        ElMessage.success(item.type === "folder" ? "文件夹已移入回收站" : "文件已移入回收站");
+        // 清空选中项
+        selectedItems.value = selectedItems.value.filter((id) => id !== item.id);
+        // 重新加载数据
+        await loadData();
+      } else {
+        ElMessage.error(res.msg || "操作失败");
+      }
     }
   } catch (error) {
-    console.error("删除操作出错: ", error);
+    if (error !== "cancel") {
+      console.error("删除操作出错: ", error);
+      ElMessage.error("操作失败: " + error);
+    }
   }
-  // 重新加载数据
-  await loadData();
 };
 
 const handlePageChange = (page) => {

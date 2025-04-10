@@ -99,7 +99,8 @@ import {
   Github,
   User,
   Settings,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-vue-next'
 
 // 侧边栏状态
@@ -124,6 +125,11 @@ const menuItems = [
     title: '我的设备',
     name: 'device',
     icon: Laptop
+  },
+  {
+    title: '回收站',
+    name: 'recycle-bin',
+    icon: Trash2
   }
 ]
 

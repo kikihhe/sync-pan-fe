@@ -86,6 +86,11 @@ const router = createRouter({
           path: '/device',
           name: 'device',
           component: () => import('@/views/DeviceView.vue'), 
+        },
+        {
+          path: '/recycle-bin',
+          name: 'recycle-bin',
+          component: () => import('@/views/RecycleBinView.vue'), 
         }
       ]
     },
