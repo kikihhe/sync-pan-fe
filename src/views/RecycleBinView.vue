@@ -2,31 +2,33 @@
   <div class="recycle-bin-container">
     <!-- 顶部工具栏 -->
     <div class="toolbar">
-      <div class="search-box">
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="搜索文件名..."
-          @keyup.enter="handleSearch"
-        />
-        <button class="search-btn" @click="handleSearch">
-          <Search :size="16" />
-        </button>
+      <div class="toolbar-left">
+        <div class="search-box">
+          <Search class="search-icon" :size="20" />
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="搜索文件名..."
+          />
+        </div>
       </div>
 
-      <div class="actions">
-        <div class="sort-filter">
-          <select v-model="sortBy" @change="handleSort">
-            <option value="createTime">创建时间</option>
-            <option value="updateTime">修改时间</option>
-            <option value="fileName">文件名</option>
-            <option value="fileSize">文件大小</option>
+      <div class="toolbar-right">
+        <div class="filter-group">
+          <select v-model="sortBy" @change="handleSort" class="filter-select">
+            <option value="createTime">按创建时间排序</option>
+            <option value="updateTime">按修改时间排序</option>
+            <option value="fileSize">按文件大小排序</option>
+            <option value="deleteTime">按删除时间排序</option>
           </select>
+
           <button class="sort-btn" @click="toggleSortOrder">
             <ArrowUp v-if="desc === 'asc'" :size="16" />
             <ArrowDown v-else :size="16" />
           </button>
         </div>
+        <button class="search-btn" @click="handleSearch">搜索</button>
+
         <div class="info-tip">
           <Info :size="16" />
           <span class="tooltip-text">回收站内的文件将保存30天，30天后自动删除</span>
@@ -403,6 +405,19 @@ onMounted(() => {
   gap: 16px;
 }
 
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .search-box {
   display: flex;
   align-items: center;
@@ -418,6 +433,41 @@ onMounted(() => {
   background: none;
   outline: none;
   width: 100%;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.search-icon {
+  color: #64748b;
+  margin-right: 8px;
+}
+
+.search-btn {
+  padding: 6px 12px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-btn:hover {
+  background-color: #4338ca;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-select {
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background-color: white;
   color: #1e293b;
   font-size: 14px;
 }
