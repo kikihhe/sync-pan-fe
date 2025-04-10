@@ -77,11 +77,7 @@ const router = createRouter({
           name: 'file',
           component: () => import('@/views/MyFileView.vue'), 
         },
-        {
-          path: '/transfer',
-          name: 'transfer',
-          component: () => import('@/views/TransferView.vue'), 
-        },
+
         {
           path: '/device',
           name: 'device',

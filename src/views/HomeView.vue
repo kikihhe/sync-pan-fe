@@ -117,11 +117,6 @@ const menuItems = [
     icon: FolderOpen
   },
   {
-    title: '传输列表',
-    name: 'transfer',
-    icon: Upload
-  },
-  {
     title: '我的设备',
     name: 'device',
     icon: Laptop
