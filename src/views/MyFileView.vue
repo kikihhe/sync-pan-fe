@@ -1,5 +1,11 @@
 <template>
   <div class="file-view">
+    <!-- 文件预览对话框 -->
+    <file-preview-dialog
+      v-model:visible="showPreviewDialog"
+      :file-id="currentPreviewFile.id"
+      :file-name="currentPreviewFile.name"
+    />
     <!-- 导航栏 -->
     <div class="navigation-bar">
       <button
@@ -338,6 +344,7 @@ import FileUploadDialog from "@/components/file-upload-dialog.vue";
 import FolderUploadDialog from "@/components/folder-upload-dialog.vue";
 // 导入Element Plus组件
 import { ElMessage, ElMessageBox } from "element-plus";
+import FilePreviewDialog from '@/components/file-preview-dialog.vue'
 
 // 状态
 const searchQuery = ref("");
@@ -376,6 +383,10 @@ const editNameInput = ref(null);
 const showFileUploadDialog = ref(false);
 const showFolderUploadDialog = ref(false);
 const isUploadingFolder = ref(false);
+
+// 预览对话框状态
+const showPreviewDialog = ref(false);
+const currentPreviewFile = ref({id: '', name: ''});
 
 // 监听目录ID变化
 watch(
@@ -656,7 +667,8 @@ const handleContextMenuAction = (action) => {
   } else if (action === "createFolder") {
     handleCreateFolder();
   } else if (action === "preview" && item) {
-    handlePreview(item);
+    currentPreviewFile.value = item;
+    showPreviewDialog.value = true;
   } else if (action === "download" && item) {
     handleDownload(item); 
   }
@@ -798,7 +810,13 @@ const handleTableClick = () => {
 
 // 文件预览
 const handlePreview = async (item) => {
-  console.log("预览暂不支持！");
+  if (item.type === 'file') {
+    showPreviewDialog.value = true;
+    currentPreviewFile.value = {
+      id: item.id,
+      name: item.name
+    };
+  }
 };
 
 // 添加文件下载处理函数
