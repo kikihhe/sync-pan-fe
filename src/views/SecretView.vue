@@ -142,7 +142,7 @@ const fetchSecrets = async () => {
     if (res.code === 200) {
       secrets.value = res.data || [];
     } else {
-      ElMessage.error(res.msg || "获取密钥列表失败");
+      ElMessage.error(res.message || "获取密钥列表失败");
     }
   } catch (error) {
     console.error("获取密钥列表出错:", error);
@@ -176,7 +176,7 @@ const confirmAddSecret = async () => {
       // 刷新列表
       fetchSecrets();
     } else {
-      ElMessage.error(res.msg || "添加密钥失败");
+      ElMessage.error(res.message || "添加密钥失败");
     }
   } catch (error) {
     console.error("添加密钥出错:", error);
@@ -203,7 +203,7 @@ const handleDeleteSecret = (secret) => {
           // 刷新列表
           fetchSecrets();
         } else {
-          ElMessage.error(res.msg || "删除密钥失败");
+          ElMessage.error(res.message || "删除密钥失败");
         }
       } catch (error) {
         console.error("删除密钥出错:", error);

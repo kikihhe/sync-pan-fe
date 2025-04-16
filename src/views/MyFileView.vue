@@ -602,7 +602,7 @@ const handleDelete = async (item) => {
         // 重新加载数据
         await loadData();
       } else {
-        ElMessage.error(res.msg || "操作失败");
+        ElMessage.error(res.message || "操作失败");
       }
     }
   } catch (error) {
@@ -724,10 +724,10 @@ const confirmCreateFolder = async () => {
     if (res.code === 200) {
       await loadData();
     } else {
-      console.error("创建文件夹失败: ", res.msg);
+      ElMessage.error("创建文件夹失败: " + res.message);
     }
   } catch (error) {
-    console.error("创建文件夹出错:", error);
+    ElMessage.error("创建文件夹出错: " + error);
   } finally {
     isCreatingFolder.value = false;
   }
@@ -738,12 +738,12 @@ const saveNewFolderName = async (item) => {
   const originalName = item.name;
   const newName = item.editName?.trim();
   if (!newName) {
-    console.warn("名称不能为空");
+    ElMessage.warning("名称不能为空");
     item.isEditing = false;
     return;
   }
   if (newName === originalName) {
-    console.warn("名称未改动");
+    ElMessage.warning("名称未改动");
     // 退出编辑状态
     item.isEditing = false;
     return;
@@ -768,14 +768,12 @@ const saveNewFolderName = async (item) => {
     }
 
     if (res.code === 200) {
-      console.log(
-        item.type === "folder" ? "文件夹名称已更新" : "文件名称已更新"
-      );
+      ElMessage.success(item.type === "folder" ? "文件夹名称已更新" : "文件名称已更新");
     } else {
-      console.error("更新名称失败:", res.msg);
+      ElMessage.error("更新名称失败: " + res.message);
     }
   } catch (error) {
-    console.error("更新名称出错:", error);
+    ElMessage.error("更新名称出错: " + error);
   } finally {
     item.name = item.editName;
     item.isEditing = false;

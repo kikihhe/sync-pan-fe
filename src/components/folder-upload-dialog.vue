@@ -504,7 +504,7 @@ const startUpload = async () => {
       // 触发完成事件
       emit("upload-complete");
     } else {
-      throw new Error(`批量创建目录失败: ${dirRes.msg}`);
+      throw new Error(`批量创建目录失败: ${dirRes.message}`);
     }
   } catch (error) {
     console.error("上传过程出错:", error);
