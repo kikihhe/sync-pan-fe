@@ -21,10 +21,11 @@ export const addDevice = async (deviceName) => {
 }
 
 // 注册设备
-export const registerDevice = async (deviceName, secretId) => {
+export const registerDevice = async (deviceName, secretId, deviceKey) => {
   return await httpClient.post('/device/registerDevice', {
     deviceName,
-    secretId: secretId
+    secretId: secretId,
+    deviceKey: deviceKey
   })
 }
 

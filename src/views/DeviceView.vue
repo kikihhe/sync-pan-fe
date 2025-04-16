@@ -428,19 +428,7 @@ const generateRandomDeviceKey = () => {
 
 // 确认添加设备
 const confirmAddDevice = async (deviceData) => {
-  try {
-    // 调用API注册设备
-    const response = await registerDevice(deviceData.name, deviceData.secretId);
-    if (response && response.code === 200) {
-      alert("添加设备成功");
-      loadData(); // 重新加载设备列表
-    } else {
-      alert("添加设备失败: " + (response?.msg || "未知错误"));
-    }
-  } catch (error) {
-    console.error("添加设备出错:", error);
-    alert("添加设备失败: " + error.message);
-  }
+  loadData();
 };
 
 // 取消添加设备
@@ -454,10 +442,10 @@ const handleStopSync = async (device) => {
   try {
     const response = await stopDeviceSync(device.id);
     if (response && response.code === 200) {
-      alert("停止同步成功");
+      ElMessage.success("停止同步成功");
       loadData(); // 重新加载设备列表
     } else {
-      alert("停止同步失败: " + (response?.msg || "未知错误"));
+      ElMessage.error("停止同步失败: " + (response?.msg || "未知错误"));
     }
   } catch (error) {
     console.error("停止同步出错:", error);
@@ -471,10 +459,10 @@ const handleDeleteDevice = async (device) => {
 
     const response = await deleteDevice(device.id);
     if (response && response.code === 200) {
-      alert("删除设备成功");
+      ElMessage.success("删除设备成功");
       loadData(); // 重新加载设备列表
     } else {
-      alert("删除设备失败: " + (response?.msg || "未知错误"));
+      ElMessage.error("删除设备失败: " + (response?.msg || "未知错误"));
     }
   } catch (error) {
     console.error("删除设备出错:", error);

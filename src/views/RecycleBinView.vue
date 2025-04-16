@@ -214,7 +214,7 @@ const loadData = async () => {
         id: file.id,
         name: file.fileName,
         type: "file",
-        size: file.fileSize,
+        size: parseInt(file.fileSize) || 0,
         updateTime: file.updateTime,
         createTime: file.createTime,
         fileType: file.fileType,
@@ -311,7 +311,7 @@ const handleFolderSelect = async (folder) => {
     );
 
     if (res && res.code === 200) {
-      ElMessage.success(`文件已恢复到 ${folder.name}`);
+      ElMessage.success(`文件已恢复到 ${folder?.name ? folder.name : '根目录'}`);
       // 重新加载数据
       loadData();
     } else {

@@ -145,7 +145,7 @@
                   <div class="code-block">
                     <pre><code>
 java -jar sync-client.jar \
-  --device-key={{ deviceInfo.deviceKey }} \
+  --device-key={{ deviceInfo.registeredDeviceKey || deviceInfo.deviceKey }} \
   --secret=YOUR_SECRET_VALUE
                     </code></pre>
                     <button
@@ -230,6 +230,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue", "confirm", "cancel"]);
+import { registerDevice } from "../api/DeviceService";
 
 // 状态变量
 const show = ref(false);
@@ -239,6 +240,7 @@ const deviceInfo = ref({
   name: "",
   secretId: null,
   deviceKey: props.deviceKey,
+  registeredDeviceKey: null, // 保存注册后返回的deviceKey
 });
 const secretSearchQuery = ref("");
 const filteredSecrets = ref([]);
@@ -364,8 +366,24 @@ const downloadClient = () => {
   document.body.removeChild(downloadLink);
 };
 
-const nextStep = () => {
-  if (currentStep.value < steps.length - 1) {
+const nextStep = async () => {
+  if (currentStep.value === 0) {
+    try {
+      // 调用API注册设备
+      const response = await registerDevice(deviceInfo.value.name, deviceInfo.value.secretId, deviceInfo.value.deviceKey);
+      if (response && response.code === 200) {
+        // 保存注册返回的deviceKey
+        deviceInfo.value.registeredDeviceKey = response.data.deviceKey;
+        ElMessage.success(deviceInfo.value.name + " 添加成功");
+        currentStep.value++;
+      } else {
+        ElMessage.error("添加设备失败: " + (response?.msg || "未知错误"));
+      }
+    } catch (error) {
+      console.error("添加设备出错:", error);
+      ElMessage.error("添加设备失败: " + error.message);
+    }
+  } else if (currentStep.value < steps.length - 1) {
     currentStep.value++;
   }
 };
@@ -382,11 +400,10 @@ const handleCancel = () => {
 };
 
 const handleFinish = () => {
-  emit("confirm", {
-    name: deviceInfo.value.name,
-    secretId: deviceInfo.value.secretId,
-  });
+  emit("confirm");
   emit("update:modelValue", false);
+  // 重置注册信息
+  deviceInfo.value.registeredDeviceKey = null;
 };
 </script>
 
