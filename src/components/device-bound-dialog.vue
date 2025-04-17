@@ -63,6 +63,9 @@
                     </div>
                   </div>
                   <div class="bound-actions">
+                    <button class="action-btn enter" @click="handleEnterDirectory(item)">
+                      <FolderOpen :size="16"/>
+                    </button>
                     <button class="action-btn delete" @click="handleDeleteBinding(item)">
                       <Trash2 :size="16"/>
                     </button>
@@ -132,11 +135,12 @@
 
 <script setup>
 import {ref, computed, watch} from "vue";
-import {X, FolderX, PlusCircle, Trash2, FolderSearch} from "lucide-vue-next";
+import {X, FolderX, PlusCircle, Trash2, FolderSearch, FolderOpen} from "lucide-vue-next";
 import {format} from "date-fns";
 import {boundMenuService} from "../api/BoundMenuService";
 import {ElMessage} from "element-plus";
 import FolderSelectDialog from "./folder-select-dialog.vue";
+import {useRouter} from 'vue-router';
 
 const props = defineProps({
   modelValue: {
@@ -283,19 +287,31 @@ const handleAddBinding = async () => {
 
 const handleDeleteBinding = async (binding) => {
   try {
-    if (!confirm(`确定要删除此绑定目录吗？`)) return;
+    const result = await ElMessageBox.confirm(
+      '确定要删除此绑定目录吗？',
+      '警告',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
 
-    const response = await boundMenuService.removeBinding(binding.id);
-    if (response && response.code === 200) {
-      ElMessage.success("删除绑定成功");
-      loadBindings(); // 重新加载绑定列表
-      emit("refresh"); // 通知父组件刷新
-    } else {
-      ElMessage.error("删除绑定失败: " + (response?.message || "未知错误"));
+    if (result === 'confirm') {
+      const response = await boundMenuService.removeBinding(binding.id);
+      if (response && response.code === 200) {
+        ElMessage.success('删除绑定成功');
+        loadBindings(); // 重新加载绑定列表
+        emit('refresh'); // 通知父组件刷新
+      } else {
+        ElMessage.error('删除绑定失败: ' + (response?.message || '未知错误'));
+      }
     }
   } catch (error) {
-    console.error("删除绑定出错:", error);
-    ElMessage.error("删除绑定失败: " + error.message);
+    if (error !== 'cancel') {
+      console.error('删除绑定出错:', error);
+      ElMessage.error('删除绑定失败: ' + error.message);
+    }
   }
 };
 
@@ -315,6 +331,18 @@ const handleFolderSelect = (menu) => {
     remoteMenuId: menu.id,
     remoteMenuPath: menu.displayPath
   };
+};
+
+const router = useRouter();
+const handleEnterDirectory = (item) => {
+  router.push({
+    name: 'file',
+    query: { 
+      remoteMenuId: item.remoteMenuId,
+      path: item.remoteMenuPath
+    }
+  });
+  handleClose();
 };
 </script>
 
@@ -508,6 +536,11 @@ const handleFolderSelect = (menu) => {
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
+}
+
+.action-btn.enter:hover {
+  background-color: #f0f9ff;
+  color: #3b82f6;
 }
 
 .action-btn.delete:hover {

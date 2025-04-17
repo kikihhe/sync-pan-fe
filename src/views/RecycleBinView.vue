@@ -312,11 +312,10 @@ const handleFolderSelect = async (folder) => {
 
     if (res && res.code === 200) {
       ElMessage.success(`文件已恢复到 ${folder?.name ? folder.name : '根目录'}`);
-      // 重新加载数据
-      loadData();
     } else {
       ElMessage.error(res?.message || "恢复文件失败");
     }
+    loadData();
   } catch (error) {
     console.error("恢复文件出错:", error);
     ElMessage.error("恢复文件出错: " + error.message);
@@ -346,11 +345,11 @@ const handlePermanentDelete = async (item) => {
         if (index !== -1) {
           selectedItems.value.splice(index, 1);
         }
-        // 重新加载数据
-        loadData();
       } else {
         ElMessage.error(res?.message || "删除文件失败");
       }
+      // 重新加载数据
+      loadData();
     }
   } catch (error) {
     if (error !== "cancel") {

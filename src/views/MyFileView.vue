@@ -323,6 +323,7 @@
 <script setup>
 // 导包
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import {
   Search,
   Upload,
@@ -486,10 +487,26 @@ const loadData = async () => {
 
     // 更新导航路径 - 确保始终包含"全部文件"
     if (data.currentMenu?.id) {
+      // 构建完整的导航路径
+      const fullPath = [];
+      let currentId = data.currentMenu.id;
+      
+      // 从当前菜单开始，向上查找父级菜单
+      while (currentId) {
+        const menu = data.currentMenu.id === currentId ? data.currentMenu : 
+          navigationHistory.value.find(h => h.id === currentId);
+        
+        if (menu) {
+          fullPath.unshift({ id: menu.id, name: menu.menuName });
+          currentId = menu.parentId;
+        } else {
+          break;
+        }
+      }
+      
       currentPath.value = [
-        { id: null, name: "全部文件" }, // 始终添加根目录
-        ...navigationHistory.value.map((h) => ({ id: h.id, name: h.menuName })),
-        { id: data.currentMenu.id, name: data.currentMenu.menuName },
+        { id: null, name: "全部文件" },
+        ...fullPath
       ];
     } else {
       currentPath.value = [{ id: null, name: "全部文件" }];
@@ -853,7 +870,38 @@ const formatDate = (dateStr) => {
 };
 
 // 生命周期钩子
-onMounted(() => {
+onMounted(async () => {
+  const route = useRoute();
+  const remoteMenuId = route.query.remoteMenuId;
+  const path = route.query.path;
+
+  if (remoteMenuId && path) {
+    // 解析路径，构建导航历史
+    const pathSegments = path.split('/').filter(Boolean);
+    let currentId = null;
+    
+    // 逐级获取目录信息并构建导航历史
+    for (const segment of pathSegments) {
+      const params = {
+        pageNum: 1,
+        pageSize: 1,
+        menuId: currentId,
+        name: segment,
+        type: 1, // 只搜索文件夹
+      };
+      
+      const res = await menuService.getSubMenuList(params);
+      if (res.code === 200 && res.data.subMenuList?.length > 0) {
+        const menu = res.data.subMenuList[0];
+        navigationHistory.value.push({ id: currentId, menuName: segment });
+        currentId = menu.id;
+      }
+    }
+    
+    // 设置当前目录为目标目录
+    currentMenu.value = { id: remoteMenuId };
+  }
+  
   loadData();
   document.addEventListener("click", hideContextMenu);
 });
