@@ -73,6 +73,10 @@
         <button class="search-btn" @click="handleSearch">搜索</button>
 
         <div class="action-group">
+          <button class="check-conflict-btn" @click="handleCheckConflict" :disabled="!currentMenu?.bound">
+            <GitBranch :size="20" />
+            检查冲突
+          </button>
           <button class="upload-btn" @click="handleUploadFile">
             <Upload :size="20" />
             上传文件
@@ -97,7 +101,7 @@
                 @change="toggleSelectAll"
               />
             </th>
-            <th>名称</th>
+            <th>名称 <el-tooltip content="蓝色为云端，绿色为本地，白色为已合并" placement="top"><HelpCircle :size="16" class="help-icon" /></el-tooltip></th>
             <th>大小</th>
             <th>创建时间</th>
             <th>修改时间</th>
@@ -141,11 +145,14 @@
                 />
                 <span
                   class="folder-name"
-                  :class="{ clickable: item.type === 'folder' }"
+                  :class="{
+                    clickable: item.type === 'folder',
+                    'source-blue': currentMenu?.bound === true && item.source === 1,
+                    'source-green': currentMenu?.bound === true && item.source === 2
+                  }"
                   @click="item.type === 'folder' && enterFolder(item)"
                   v-show="!item.isEditing"
-                  >{{ item.name }}</span
-                >
+                >{{ item.name }}</span>
               </div>
             </td>
             <td>{{ formatSize(item.size) }}</td>
@@ -246,6 +253,14 @@
       @upload-complete="handleUploadComplete"
     />
 
+    <!-- 冲突解决对话框 -->
+    <ConflictResolveDialog
+      :show="showConflictDialog"
+      :conflicts="conflicts"
+      @close="showConflictDialog = false"
+      @merge="handleMergeConflict"
+    />
+
     <!-- 右键菜单 -->
     <div
       v-if="contextMenu.show"
@@ -336,7 +351,8 @@ import {
   ChevronRight,
   Eye,
   Download,
-} from "lucide-vue-next";
+  HelpCircle,
+  GitBranch } from "lucide-vue-next";
 import { format } from "date-fns";
 import { menuService } from "@/api/MenuService.js";
 import { fileService } from "@/api/FileService.js";
@@ -346,9 +362,12 @@ import FolderUploadDialog from "@/components/folder-upload-dialog.vue";
 // 导入Element Plus组件
 import { ElMessage, ElMessageBox } from "element-plus";
 import FilePreviewDialog from '@/components/file-preview-dialog.vue'
+import ConflictResolveDialog from '@/components/conflict-resolve-dialog.vue'
 
 // 状态
 const searchQuery = ref("");
+const showConflictDialog = ref(false);
+const conflicts = ref([]);
 const sortBy = ref("createTime");
 const typeFilter = ref("all");
 const selectedItems = ref([]);
@@ -523,6 +542,8 @@ const loadData = async () => {
         parentId: menu.parentId,
         menuLevel: menu.menuLevel,
         owner: menu.owner,
+        source: menu.source,
+        bound: menu.bound,
       })),
       ...(data.subFileList || []).map((file) => ({
         id: file.id,
@@ -537,6 +558,7 @@ const loadData = async () => {
         owner: file.owner,
         identifier: file.identifier,
         realPath: file.realPath,
+        source: file.source,
       })),
     ];
     total.value = data.total;
@@ -667,6 +689,27 @@ const showContextMenu = (event, i) => {
     item: i,
     type: i.type,
   };
+};
+
+const handleCheckConflict = async () => {
+  if (!currentMenu.value?.bound) return;
+  try {
+    const res = await menuService.checkConflict(currentMenu.value.id);
+    console.log("res: ", res);
+    if (res.code === 200) {
+      conflicts.value = res.data;
+      showConflictDialog.value = true;
+    } else {
+      ElMessage.error(res.message || '检查冲突失败');
+    }
+  } catch (error) {
+    console.error('检查冲突出错: ', error);
+    ElMessage.error('检查冲突失败');
+  }
+};
+
+const handleMergeConflict = () => {
+  showConflictDialog.value = false;
 };
 
 const handleContextMenuAction = (action) => {
@@ -809,7 +852,6 @@ const saveNewFolderName = async (item) => {
   }
   await loadData();
 };
-
 // 处理表格点击 - 取消创建/编辑状态
 const handleTableClick = () => {
   // 如果正在创建文件夹，则确认创建
@@ -1129,6 +1171,7 @@ onUnmounted(() => {
 .page-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background-color: #6b7280;
 }
 
 .page-info {
@@ -1257,4 +1300,23 @@ onUnmounted(() => {
 .folder-name:hover {
   color: #3b82f6;
 }
+.source-blue {
+  color: #3b82f6;
+}
+
+.source-green {
+  color: #22c55e;
+}
+
+.source-white {
+  color: #ffffff;
+}
+
+.help-icon {
+  vertical-align: middle;
+  margin-left: 4px;
+  color: #64748b;
+  cursor: help;
+}
 </style>
+
