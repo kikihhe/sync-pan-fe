@@ -117,12 +117,6 @@ export const processDirectoryMap = (directoryResponse) => {
     return directoryMap
 }
 
-// 检查目录冲突
-export const checkConflict = async (menuId) => {
-    const res = await httpClient.post('/menu/checkConflict?menuId=' + menuId)
-    console.log(res)
-    return res
-}
 
 export const menuService = {
     getSubMenuList,
@@ -132,5 +126,4 @@ export const menuService = {
     batchCreateDirectories,
     buildDirectoryTree,
     processDirectoryMap,
-    checkConflict
 }

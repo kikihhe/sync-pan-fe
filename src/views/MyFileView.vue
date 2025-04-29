@@ -356,6 +356,7 @@ import {
 import { format } from "date-fns";
 import { menuService } from "@/api/MenuService.js";
 import { fileService } from "@/api/FileService.js";
+import { boundService } from "@/api/BoundMenuService.js";
 import FileUploadDialog from "@/components/file-upload-dialog.vue";
 // 导入新组件
 import FolderUploadDialog from "@/components/folder-upload-dialog.vue";
@@ -694,7 +695,7 @@ const showContextMenu = (event, i) => {
 const handleCheckConflict = async () => {
   if (!currentMenu.value?.bound) return;
   try {
-    const res = await menuService.checkConflict(currentMenu.value.id);
+    const res = await boundService.checkConflict(currentMenu.value.id);
     console.log("res: ", res);
     if (res.code === 200) {
       conflicts.value = res.data;

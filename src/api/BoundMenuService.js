@@ -15,9 +15,15 @@ export const removeBinding = async (bindingId) => {
   return await httpClient.delete(`/bound/${bindingId}`)
 }
 
+// 检查目录冲突
+export const checkConflict = async (menuId) => {
+  return await httpClient.post('/bound/checkConflict?menuId=' + menuId)
+}
+
 // 导出所有方法
 export const boundMenuService = {
   getDeviceBindings,
   createBinding,
-  removeBinding
+  removeBinding,
+  checkConflict
 }
