@@ -3,6 +3,13 @@
       <Transition name="modal">
         <div v-if="show" class="modal-mask">
           <div class="modal-container">
+            <!-- 加载中遮罩 -->
+            <div v-if="isLoading" class="loading-overlay">
+              <div class="loading-content">
+                <Loader :size="32" class="loading-icon" />
+                <p class="loading-text">{{ loadingMessage }}</p>
+              </div>
+            </div>
             <div class="modal-header">
               <h3 class="modal-title">解决冲突</h3>
               <button class="btn-close" @click="handleClose">
@@ -75,7 +82,7 @@
                         <span class="item-name">
                           {{ item.itemType === 'file' ? item.item.file.fileName : item.item.menu.menuName }}
                         </span>
-                        <span class="conflict-type">{{ item.type === 1 ? '新增' : '删除' }}</span>
+                        <span class="conflict-type">已合并</span>
                         
                         <!-- 添加移除按钮 -->
                         <button class="remove-btn" @click="removeFromMerged(item.originalIndex)">
@@ -139,9 +146,11 @@
   </template>
   
   <script setup>
-  import { File, Folder, X, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-vue-next';
-  import { defineProps, defineEmits, ref, computed } from 'vue';
+  import { File, Folder, X, ChevronLeft, ChevronRight, ChevronDown, Loader } from 'lucide-vue-next';
+  import { defineProps, defineEmits, ref, computed, watch } from 'vue';
   import MenuConflictItem from './menu-conflict-item.vue';
+  import { resolveConflict, getResolvedConflict } from '../api/BoundMenuService';
+  import { ElMessage } from 'element-plus';
   
   const props = defineProps({
     show: {
@@ -151,16 +160,31 @@
     conflicts: {
       type: Array,
       required: true
+    },
+    currentMenu: {
+      type: Object,
+      required: true
+    },
+    currentDirectoryId: {
+      type: [Number, String, null],
+      required: false,
+      default: null
     }
   });
   
-  const emit = defineEmits(['close', 'merge']);
+  const emit = defineEmits(['close', 'merge', 'refresh']);
   
   // 存储合并结果的数组
   const mergedItems = ref([]);
   
   // 存储展开/折叠状态的集合
   const expandedMenuIds = ref(new Set());
+  
+  // 加载状态
+  const isLoading = ref(false);
+  
+  // 加载提示信息
+  const loadingMessage = ref('');
   
   // 获取文件或目录的所有父目录ID路径
   const getParentMenuPath = (item, itemType, source) => {
@@ -427,14 +451,156 @@
     return result;
   });
   
-  const handleMerge = () => {
-    // 将合并结果传递给父组件
-    emit('merge', mergedItems.value);
-    // 清空合并结果
-    mergedItems.value = [];
-    // 清空展开状态
-    expandedMenuIds.value.clear();
+  const handleMerge = async () => {
+    try {
+      isLoading.value = true;
+      loadingMessage.value = '正在解决冲突，请耐心等待...';
+
+      const menuItems = [];
+      const fileItems = [];
+
+      // Use the prop passed from MyFileView.vue
+      const currentMenuId = props.currentMenu?.id;
+
+      mergedItems.value.forEach(item => {
+        if (item.itemType === 'file') {
+          // Construct file object matching backend File domain
+          fileItems.push({
+            id: item.item.file.id,
+            fileName: item.item.file.fileName,
+            fileSize: item.item.file.fileSize,
+            fileType: item.item.file.fileType,
+            storageType: item.item.file.storageType,
+            menuId: item.item.file.menuId,
+            owner: item.item.file.owner,
+            identifier: item.item.file.identifier,
+            realPath: item.item.file.realPath,
+            displayPath: item.item.file.displayPath,
+            source: 3 // Mark as merged
+          });
+        } else if (item.itemType === 'menu') {
+          // Construct menu object matching backend Menu domain
+          menuItems.push({
+            id: item.item.menu.id,
+            menuName: item.item.menu.menuName,
+            menuLevel: item.item.menu.menuLevel, // Ensure these exist or handle null
+            parentId: item.item.menu.parentId,
+            displayPath: item.item.menu.displayPath,
+            owner: item.item.menu.owner,
+            bound: item.item.menu.bound,
+            source: 3 // Mark as merged
+          });
+        }
+      });
+
+      // Construct the DTO matching your backend
+      const mergeData = {
+        currentMenuId: currentMenuId, // Use the ID from the prop
+        menuItems: menuItems,
+        fileItems: fileItems
+      };
+      console.log('mergeData:', mergeData);
+      
+      const res = await resolveConflict(mergeData);
+
+      if (res.code === 200) {
+          ElMessage.success('冲突已成功解决！');
+          emit('refresh'); 
+          emit('close'); 
+      } else {
+          ElMessage.error(res.message || '解决冲突失败，请稍后重试。');
+      }
+    } catch (error) {
+      console.error('解决冲突失败:', error);
+      ElMessage.error(`解决冲突时发生错误: ${error.message || '未知错误'}`);
+    } finally {
+      isLoading.value = false;
+      loadingMessage.value = '';
+    }
   };
+
+  // 加载已解决的冲突
+  const loadResolvedConflicts = async () => {
+    if (!props.currentMenu || !props.currentMenu.id) return;
+    
+    try {
+      isLoading.value = true;
+      loadingMessage.value = '正在加载已解决的冲突...';
+      
+      const res = await getResolvedConflict(props.currentMenu.id);
+      
+      if (res.code === 200 && res.data) {
+        // 处理已解决的文件
+        if (res.data.resolvedFileList && res.data.resolvedFileList.length > 0) {
+          res.data.resolvedFileList.forEach(file => {
+            // 构造与冲突文件格式相同的对象
+            const resolvedFile = {
+              source: 'resolved', // 标记为已解决
+              itemType: 'file',
+              item: {
+                file: file,
+                type: file.source === 3 ? 1 : 2 // 使用文件的source字段判断是新增还是删除
+              }
+            };
+            
+            // 添加到合并结果中
+            mergedItems.value.push(resolvedFile);
+          });
+        }
+        
+        // 处理已解决的目录
+        if (res.data.resolvedMenuList && res.data.resolvedMenuList.length > 0) {
+          res.data.resolvedMenuList.forEach(menu => {
+            // 构造与冲突目录格式相同的对象
+            const resolvedMenu = {
+              source: 'resolved', // 标记为已解决
+              itemType: 'menu',
+              item: {
+                menu: menu,
+                type: menu.source === 3 ? 1 : 2 // 使用目录的source字段判断是新增还是删除
+              }
+            };
+            
+            // 添加到合并结果中
+            mergedItems.value.push(resolvedMenu);
+          });
+        }
+        
+        // 展开所有已解决的目录
+        mergedItems.value.forEach(item => {
+          if (item.itemType === 'menu') {
+            expandedMenuIds.value.add(item.item.menu.id);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('加载已解决冲突失败:', error);
+      ElMessage.error(`加载已解决冲突时发生错误: ${error.message || '未知错误'}`);
+    } finally {
+      isLoading.value = false;
+      loadingMessage.value = '';
+    }
+  };
+
+  // Clear mergedItems when the dialog is shown or conflicts change
+  watch(() => props.show, (newVal) => {
+    if (newVal) {
+      mergedItems.value = [];
+      expandedMenuIds.value.clear();
+      // 加载已解决的冲突
+      loadResolvedConflicts();
+    }
+  });
+  
+  // 监听当前目录变化
+  watch(() => props.currentMenu?.id, (newVal, oldVal) => {
+    if (newVal !== oldVal && props.show) {
+      // 当前目录变化且对话框显示时，重新加载已解决的冲突
+      mergedItems.value = [];
+      expandedMenuIds.value.clear();
+      loadResolvedConflicts();
+    }
+  });
   </script>
   
   <style scoped>
@@ -542,8 +708,8 @@
   }
   
   .conflict-item.deleted {
-    background-color: #fef2f2;
-    border: 1px solid #fca5a5;
+    background-color: #eff6ff;
+    border: 1px solid #93c5fd;
   }
   
   .item-icon {
@@ -574,8 +740,8 @@
   }
   
   .deleted .conflict-type {
-    background-color: #fee2e2;
-    color: #dc2626;
+    background-color: #dbeafe;
+    color: #2563eb;
   }
   
   /* 箭头按钮样式 */
@@ -617,8 +783,8 @@
   }
   
   .remove-btn:hover {
-    background-color: #fee2e2;
-    color: #dc2626;
+    background-color: #dbeafe;
+    color: #2563eb;
   }
   
   .modal-footer {
@@ -669,3 +835,50 @@
     opacity: 0;
   }
   </style>
+
+/* 加载遮罩样式 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: 8px;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loading-icon {
+  animation: spin 1.5s linear infinite;
+  color: #3b82f6;
+  margin-bottom: 16px;
+}
+
+.loading-text {
+  font-size: 1rem;
+  color: #374151;
+  margin: 0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

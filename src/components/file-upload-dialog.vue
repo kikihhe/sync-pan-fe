@@ -39,15 +39,26 @@
             <span>大小</span>
             <div class="tooltip-container">
               <HelpCircle :size="14" class="help-icon" />
-              <span class="tooltip-text">文件大于 10M 时将使用分片上传</span>
+              <span class="tooltip-text">文件大于 {{ formatSize(fileService.FILE_UPLOAD_CONFIG.LARGE_FILE_THRESHOLD) }} 时将使用分片上传</span>
             </div>
           </div>
         </div>
         
         <div class="file-items">
           <div class="file-item" v-for="file in selectedFiles" :key="file.path">
-            <span class="file-name">{{ file.name }}</span>
-            <span class="file-size">{{ formatSize(file.size) }}</span>
+            <div class="file-info">
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">{{ formatSize(file.size) }}</span>
+            </div>
+            <div class="file-progress" v-if="file.isUploading || file.progress > 0">
+              <div class="progress-bar">
+                <div class="progress-bar-inner" :style="{ width: file.progress + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ Math.round(file.progress) }}%</span>
+            </div>
+            <div class="file-status" v-if="file.status">
+              <span :class="['status-text', file.status === 'success' ? 'success' : 'error']">{{ file.status === 'success' ? '上传成功' : '上传失败' }}</span>
+            </div>
           </div>
         </div>
         
@@ -111,6 +122,9 @@ const handleFileSelect = (event) => {
       name: file.webkitRelativePath || file.name,
       size: file.size,
       file: file,
+      progress: 0,
+      isUploading: false,
+      status: null
     }));
     selectedFiles.value = folderFiles;
   } else {
@@ -119,6 +133,9 @@ const handleFileSelect = (event) => {
       name: file.name,
       size: file.size,
       file: file,
+      progress: 0,
+      isUploading: false,
+      status: null
     }));
     selectedFiles.value = selectedFilesList;
   }
@@ -155,7 +172,45 @@ const handleDrop = (e) => {
       name: file.name,
       size: file.size,
       file: file,
+      progress: 0,
+      isUploading: false,
+      status: null
     }));
+  }
+};
+
+// 遍历文件夹并收集文件
+const traverseDirectory = async (entry, path = "") => {
+  if (entry.isFile) {
+    // 处理文件
+    entry.file((file) => {
+      const filePath = path ? `${path}/${file.name}` : file.name;
+      selectedFiles.value.push({
+        name: filePath,
+        size: file.size,
+        file: file,
+        path: filePath,
+        progress: 0,
+        isUploading: false,
+        status: null
+      });
+    });
+  } else if (entry.isDirectory) {
+    // 处理文件夹
+    const dirReader = entry.createReader();
+    const readEntries = () => {
+      dirReader.readEntries(async (entries) => {
+        if (entries.length > 0) {
+          for (const entry of entries) {
+            const newPath = path ? `${path}/${entry.name}` : entry.name;
+            await traverseDirectory(entry, newPath);
+          }
+          // 继续读取，因为可能一次读不完
+          readEntries();
+        }
+      });
+    };
+    readEntries();
   }
 };
 
@@ -180,26 +235,58 @@ const handleUpload = async () => {
     let successCount = 0;
     let failCount = 0;
     
-    for (const fileItem of selectedFiles.value) {
-      const res = await fileService.uploadSingleFile(
-        fileItem.file,
-        props.parentMenuId
-      );
-      if (res.code === 200) {
+    // 获取大文件阈值
+    const { LARGE_FILE_THRESHOLD } = fileService.FILE_UPLOAD_CONFIG;
+    
+    // 并发上传文件
+    await fileService.concurrentUploadFiles(selectedFiles.value, null, {
+      menuId: props.parentMenuId,
+      maxConcurrent: 3, // 最大并发上传数
+      onProgress: (completed, total) => {
+        console.log(`总进度: ${completed}/${total}`);
+      },
+      onFileStart: (file) => {
+        // 设置上传状态
+        file.isUploading = true;
+        file.progress = 0;
+        file.status = null;
+        console.log(`开始上传文件: ${file.name}`);
+        
+        // 显示文件大小是否超过阈值的信息
+        if (file.size > LARGE_FILE_THRESHOLD) {
+          console.log(`文件 ${file.name} 大小超过 ${LARGE_FILE_THRESHOLD/1024/1024}MB，将使用分片上传`);
+        }
+      },
+      onFileProgress: (file, progress) => {
+        // 更新文件上传进度
+        file.progress = progress;
+        console.log(`文件 ${file.name} 上传进度: ${progress}%`);
+      },
+      onFileComplete: (file) => {
+        // 文件上传完成的回调
+        file.isUploading = false;
+        file.progress = 100;
+        file.status = 'success';
         successCount++;
-      } else {
+      },
+      onFileError: (file, error) => {
+        console.error(`上传文件失败: ${file.name}`, error);
+        file.isUploading = false;
+        file.status = 'error';
         failCount++;
-        console.error("文件上传失败:", fileItem.name);
-        ElMessage.error(`文件 ${fileItem.name} 上传失败: ${res.message || '未知错误'}`);
-      }
-    }
+        ElMessage.error(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
+      },
+    });
     
     if (successCount > 0) {
       ElMessage.success(`成功上传 ${successCount} 个文件`);
     }
     
-    emit("file-upload-complete");
-    onClose();
+    // 延迟关闭，让用户看到上传完成状态
+    setTimeout(() => {
+      emit("upload-complete");
+      onClose();
+    }, 1000);
   } catch (error) {
     console.error("上传过程中出错:", error);
     ElMessage.error("上传过程中出错: " + error.message);
@@ -368,24 +455,79 @@ const onClose = () => {
 }
 
 .file-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  flex-direction: column;
   padding: .5rem 1rem;
   border-bottom: .0625rem solid #e2e8f0;
+  gap: .5rem;
 }
 
 .file-item:last-child {
   border-bottom: none;
 }
 
+.file-info {
+  display: flex;
+  justify-content: space-between;
+}
+
 .file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .file-size {
   color: #64748b;
+  margin-left: 1rem;
+}
+
+.file-progress {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: .5rem;
+  background-color: #e2e8f0;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background-color: #3b82f6;
+  border-radius: 1rem;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: .75rem;
+  color: #64748b;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.file-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.status-text {
+  font-size: .75rem;
+  font-weight: 500;
+}
+
+.status-text.success {
+  color: #10b981;
+}
+
+.status-text.error {
+  color: #ef4444;
 }
 
 .total-size {

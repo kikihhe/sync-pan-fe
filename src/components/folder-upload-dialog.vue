@@ -60,7 +60,7 @@
 
       <!-- 文件树结构 -->
       <div v-if="selectedFolder && !isUploading" class="file-tree">
-        <div class="file-tree-header">文件夹结构</div>
+        <div class="file-tree-header">文件夹结构 <span class="file-size-info">(大于 {{ formatSize(fileService.FILE_UPLOAD_CONFIG.LARGE_FILE_THRESHOLD) }} 的文件将使用分片上传)</span></div>
         <div class="file-tree-content">
           <template v-for="(node, index) in fileTree" :key="index">
             <div
@@ -78,6 +78,31 @@
               <span :title="node.path">{{ node.name }}</span>
             </div>
           </template>
+        </div>
+      </div>
+
+      <!-- 文件上传列表 -->
+      <div v-if="isUploading && fileTree.filter(node => !node.isDirectory).length > 0" class="file-upload-list">
+        <div class="file-list-header">
+          <span class="file-name">文件名称</span>
+          <span class="file-size">大小</span>
+        </div>
+        <div class="file-items">
+          <div class="file-item" v-for="node in fileTree.filter(node => !node.isDirectory)" :key="node.path">
+            <div class="file-info">
+              <span class="file-name" :title="node.path">{{ node.name }}</span>
+              <span class="file-size">{{ formatSize(node.size) }}</span>
+            </div>
+            <div class="file-progress" v-if="node.isUploading || node.progress > 0">
+              <div class="progress-bar">
+                <div class="progress-bar-inner" :style="{ width: node.progress + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ Math.round(node.progress) }}%</span>
+            </div>
+            <div class="file-status" v-if="node.status">
+              <span :class="['status-text', node.status === 'success' ? 'success' : 'error']">{{ node.status === 'success' ? '上传成功' : '上传失败' }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -225,6 +250,9 @@ const traverseDirectory = async (entry, path = "") => {
         isDirectory: false,
         file: file,
         level: level,
+        progress: 0,
+        isUploading: false,
+        status: null
       });
     } else if (entry.isDirectory && level > 0) {
       // 跳过根目录
@@ -331,6 +359,9 @@ const buildFileTree = (files) => {
         level: pathParts.length - 1,
         size: file.size,
         file: file,
+        progress: 0,
+        isUploading: false,
+        status: null
       };
 
       parent.children.push(fileNode);
@@ -485,19 +516,48 @@ const startUpload = async () => {
       // 4. 并发上传文件
       currentOperation.value = `准备上传文件...`;
 
+      // 获取大文件阈值
+      const { LARGE_FILE_THRESHOLD } = fileService.FILE_UPLOAD_CONFIG;
+
+      // 更新文件状态为准备上传
+      files.forEach(file => {
+        file.isUploading = false;
+        file.progress = 0;
+        file.status = null;
+      });
+
       await fileService.concurrentUploadFiles(files, directoryMap, {
         maxConcurrent: maxConcurrentUploads,
         onProgress: (completed, total) => {
           uploadedCount.value = completed + 1; // +1 是因为目录创建操作
         },
         onFileStart: (file) => {
+          // 更新当前操作文件
           currentOperation.value = `上传文件: ${file.path}`;
+          // 更新文件状态为上传中
+          file.isUploading = true;
+          
+          // 显示文件大小是否超过阈值的信息
+          if (file.size > LARGE_FILE_THRESHOLD) {
+            console.log(`文件 ${file.name} 大小超过 ${LARGE_FILE_THRESHOLD/1024/1024}MB，将使用分片上传`);
+            currentOperation.value = `分片上传文件: ${file.path}`;
+          }
+        },
+        onFileProgress: (file, progress) => {
+          // 更新文件上传进度
+          file.progress = progress;
         },
         onFileComplete: (file) => {
           // 文件上传完成的回调
+          file.isUploading = false;
+          file.progress = 100;
+          file.status = 'success';
         },
         onFileError: (file, error) => {
           console.error(`上传文件失败: ${file.path}`, error);
+          file.isUploading = false;
+          file.status = 'error';
+          currentOperation.value = `上传失败: ${file.path} - ${error.message}`;
         },
       });
 
@@ -667,6 +727,15 @@ const onClose = () => {
   background-color: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
   font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-size-info {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: normal;
 }
 
 .file-tree-content {
@@ -731,6 +800,109 @@ const onClose = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.file-upload-list {
+  margin: 0 16px 16px;
+  max-height: 300px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.file-list-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 8px 16px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.file-items {
+  overflow-y: auto;
+  max-height: 200px;
+}
+
+.file-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 8px;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-info {
+  display: flex;
+  justify-content: space-between;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.file-size {
+  color: #64748b;
+  margin-left: 16px;
+}
+
+.file-progress {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background-color: #3b82f6;
+  border-radius: 16px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #64748b;
+  min-width: 40px;
+  text-align: right;
+}
+
+.file-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.status-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-text.success {
+  color: #10b981;
+}
+
+.status-text.error {
+  color: #ef4444;
 }
 
 .folder-upload-footer {

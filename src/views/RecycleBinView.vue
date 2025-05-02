@@ -337,24 +337,39 @@ const handlePermanentDelete = async (item) => {
     );
 
     if (result === "confirm") {
-      const res = await fileService.permanentDeleteFile(item.id);
-      if (res && res.code === 200) {
-        ElMessage.success("文件已永久删除");
-        // 从选中项中移除
-        const index = selectedItems.value.indexOf(item.id);
-        if (index !== -1) {
-          selectedItems.value.splice(index, 1);
+      isLoading.value = true; // 开始加载状态
+      try {
+        const res = await fileService.permanentDeleteFile(item.id);
+        if (res && res.code === 200) {
+          ElMessage.success("文件已永久删除");
+          // 从选中项中移除
+          const index = selectedItems.value.indexOf(item.id);
+          if (index !== -1) {
+            selectedItems.value.splice(index, 1);
+          }
+          
+          // 如果当前页没有数据了且不是第一页，则返回上一页
+          if (items.value.length <= 1 && currentPage.value > 1) {
+            currentPage.value--;
+          }
+          
+          // 重新加载数据
+          await loadData();
+        } else {
+          ElMessage.error(res?.message || "删除文件失败");
+          isLoading.value = false; // 结束加载状态
         }
-      } else {
-        ElMessage.error(res?.message || "删除文件失败");
+      } catch (err) {
+        console.error("删除文件出错:", err);
+        ElMessage.error("删除文件出错: " + err.message);
+        isLoading.value = false; // 确保错误时也结束加载状态
       }
-      // 重新加载数据
-      loadData();
     }
   } catch (error) {
     if (error !== "cancel") {
       console.error("删除文件出错:", error);
       ElMessage.error("删除文件出错: " + error.message);
+      isLoading.value = false; // 确保错误时也结束加载状态
     }
   }
 };

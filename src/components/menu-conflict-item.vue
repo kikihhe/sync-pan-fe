@@ -161,8 +161,8 @@ const toggleExpand = () => {
 }
 
 .conflict-item.deleted {
-  background-color: #fef2f2;
-  border: 1px solid #fca5a5;
+  background-color: #eff6ff;
+  border: 1px solid #93c5fd;
 }
 
 .item-icon {
@@ -193,8 +193,8 @@ const toggleExpand = () => {
 }
 
 .deleted .conflict-type {
-  background-color: #fee2e2;
-  color: #dc2626;
+  background-color: #dbeafe;
+  color: #2563eb;
 }
 
 /* 箭头按钮样式 */

@@ -20,10 +20,22 @@ export const checkConflict = async (menuId) => {
   return await httpClient.post('/bound/checkConflict?menuId=' + menuId)
 }
 
+// 解决冲突
+export const resolveConflict = async (resolveData) => {
+  return await httpClient.post('/bound/resolveConflict', resolveData)
+}
+
+// 获取已解决的冲突
+export const getResolvedConflict = async (menuId) => {
+  return await httpClient.post('/bound/getResolvedConflict?menuId=' + menuId)
+}
+
 // 导出所有方法
 export const boundMenuService = {
   getDeviceBindings,
   createBinding,
   removeBinding,
-  checkConflict
+  checkConflict,
+  resolveConflict,
+  getResolvedConflict
 }

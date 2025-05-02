@@ -257,6 +257,7 @@
     <ConflictResolveDialog
       :show="showConflictDialog"
       :conflicts="conflicts"
+      :currentMenu="currentMenu"
       @close="showConflictDialog = false"
       @merge="handleMergeConflict"
     />
@@ -696,7 +697,6 @@ const handleCheckConflict = async () => {
   if (!currentMenu.value?.bound) return;
   try {
     const res = await boundMenuService.checkConflict(currentMenu.value.id);
-    console.log("res: ", res);
     if (res.code === 200) {
       conflicts.value = res.data;
       showConflictDialog.value = true;
@@ -711,6 +711,8 @@ const handleCheckConflict = async () => {
 
 const handleMergeConflict = () => {
   showConflictDialog.value = false;
+  // 刷新数据
+  loadData();
 };
 
 const handleContextMenuAction = (action) => {
