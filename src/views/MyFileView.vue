@@ -648,7 +648,7 @@ const handleDelete = async (item) => {
       }
 
       if (res.code === 200) {
-        ElMessage.success(item.type === "folder" ? "文件夹已移入回收站" : "文件已移入回收站");
+        ElMessage.success(item.type === "folder" ? `目录 ${item.name} 已删除，下辖文件已移入回收站` : `文件 ${item.name} 已移入回收站，30天内可恢复`);
         // 清空选中项
         selectedItems.value = selectedItems.value.filter((id) => id !== item.id);
         // 重新加载数据

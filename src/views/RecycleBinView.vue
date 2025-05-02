@@ -342,18 +342,12 @@ const handlePermanentDelete = async (item) => {
         const res = await fileService.permanentDeleteFile(item.id);
         if (res && res.code === 200) {
           ElMessage.success("文件已永久删除");
-          // 从选中项中移除
-          const index = selectedItems.value.indexOf(item.id);
-          if (index !== -1) {
-            selectedItems.value.splice(index, 1);
-          }
           
-          // 如果当前页没有数据了且不是第一页，则返回上一页
-          if (items.value.length <= 1 && currentPage.value > 1) {
-            currentPage.value--;
-          }
+          // 检查是否需要调整页码
+          // 如果当前是最后一页，并且该页只有一条数据（即将被删除的数据）
+            currentPage.value -= 1;
+
           
-          // 重新加载数据
           await loadData();
         } else {
           ElMessage.error(res?.message || "删除文件失败");
