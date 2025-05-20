@@ -1,10 +1,10 @@
 import httpClient from '@/utils/ajax'
 import SparkMD5 from 'spark-md5'
 
-// 分片大小定义为2MB
-const CHUNK_SIZE = 2 * 1024 * 1024
-// 大文件阈值，超过此大小将使用分片上传，设置为10MB
-const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024
+// 分片大小定义为20MB
+const CHUNK_SIZE = 20 * 1024 * 1024
+// 大文件阈值，超过此大小将使用分片上传，设置为150MB
+const LARGE_FILE_THRESHOLD = 150 * 1024 * 1024
 
 // 计算整个文件的MD5
 const calculateMD5 = (file) => {
@@ -112,6 +112,9 @@ export const uploadSingleFile = async (file, menuId, onProgress) => {
         formData.append('identifier', fileHash)
         formData.append('multipartFile', file)
         
+        // 记录上传开始时间
+        const uploadStartTime = Date.now()
+        
         // 发送请求
         const res = await httpClient.post('/file/upload', formData, {
             headers: {
@@ -127,6 +130,23 @@ export const uploadSingleFile = async (file, menuId, onProgress) => {
             }
         })
         
+        // 记录上传结束时间和总耗时
+        const uploadEndTime = Date.now()
+        const totalUploadTime = uploadEndTime - uploadStartTime
+        
+        // 输出上传统计信息
+        console.log(`文件 ${file.name} 上传完成，总大小: ${(file.size / 1024 / 1024).toFixed(2)}MB，总耗时: ${totalUploadTime}ms`)
+        
+        // 添加上传时间信息到返回结果
+        if (res.code === 200) {
+            res.uploadStats = {
+                fileName: file.name,
+                fileSize: file.size,
+                totalUploadTime,
+                totalChunks: 1
+            }
+        }
+        
         return res
     }
 }
@@ -139,6 +159,11 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
     let uploadedChunks = 0
     let allChunksUploaded = false
     
+    // 记录整个文件上传的开始时间
+    const fileUploadStartTime = Date.now()
+    // 记录每个分片的上传时间
+    const chunkUploadTimes = []
+    
     try {
         // 并发上传分片，最多5个并发
         const concurrency = 5
@@ -148,6 +173,9 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
         // 处理单个分片上传
         const processChunk = async (chunkIndex) => {
             if (chunkIndex >= totalChunks) return
+            
+            // 记录分片上传开始时间
+            const chunkStartTime = Date.now()
             
             const chunk = chunks[chunkIndex]
             const chunkName = await calculateChunkMD5(chunk)
@@ -179,6 +207,16 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
                 if (res.code === 200) {
                     uploadedChunks++
                     allChunksUploaded = res.data === true
+                    
+                    // 记录分片上传结束时间和耗时
+                    const chunkEndTime = Date.now()
+                    const chunkUploadTime = chunkEndTime - chunkStartTime
+                    chunkUploadTimes.push({
+                        chunkIndex,
+                        size: chunk.size,
+                        uploadTime: chunkUploadTime
+                    })
+                    console.log(`分片 ${chunkIndex} 上传完成，大小: ${(chunk.size / 1024 / 1024).toFixed(2)}MB，耗时: ${chunkUploadTime}ms`)
                     
                     // 如果所有分片都已上传，则合并分片
                     if (allChunksUploaded) {
@@ -251,8 +289,31 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
             }
         }
         
-        // 返回成功结果
-        return { code: 200, message: '上传成功' }
+        // 计算并记录整个文件的上传时间
+        const fileUploadEndTime = Date.now()
+        const totalUploadTime = fileUploadEndTime - fileUploadStartTime
+        
+        // 计算平均分片上传时间
+        const avgChunkUploadTime = chunkUploadTimes.reduce((sum, chunk) => sum + chunk.uploadTime, 0) / chunkUploadTimes.length
+        
+        // 输出上传统计信息
+        console.log(`文件 ${file.name} 上传完成，总大小: ${(file.size / 1024 / 1024).toFixed(2)}MB，总耗时: ${totalUploadTime}ms`)
+        console.log(`分片数量: ${totalChunks}，平均每个分片上传耗时: ${avgChunkUploadTime.toFixed(2)}ms`)
+        console.log(`分片上传详情:`, chunkUploadTimes)
+        
+        // 返回成功结果，包含上传时间信息
+        return { 
+            code: 200, 
+            message: '上传成功',
+            uploadStats: {
+                fileName: file.name,
+                fileSize: file.size,
+                totalUploadTime,
+                totalChunks,
+                avgChunkUploadTime,
+                chunkUploadTimes
+            }
+        }
     } catch (error) {
         console.error('分片上传失败:', error)
         throw error
@@ -293,6 +354,12 @@ export const concurrentUploadFiles = async (files, directoryMap, options = {}) =
 
     let completed = 0
     const total = files.length
+    
+    // 记录整体上传开始时间
+    const totalUploadStartTime = Date.now()
+    
+    // 用于收集所有文件的上传统计信息
+    const uploadStats = []
 
     // 创建一个队列来管理上传任务
     const queue = [...files]
@@ -332,12 +399,19 @@ export const concurrentUploadFiles = async (files, directoryMap, options = {}) =
             }
 
             // 上传文件
-            await uploadSingleFile(file.file, menuId, (progress) => {
+            const uploadResult = await uploadSingleFile(file.file, menuId, (progress) => {
                 // 如果有进度回调，则调用
                 if (typeof options.onFileProgress === 'function') {
                     options.onFileProgress(file, progress)
                 }
             })
+            
+            // 收集上传统计信息
+            if (uploadResult && uploadResult.uploadStats) {
+                // 添加文件路径信息到统计数据
+                uploadResult.uploadStats.path = file.path || file.name
+                uploadStats.push(uploadResult.uploadStats)
+            }
 
             onFileComplete(file)
         } catch (error) {
@@ -369,7 +443,45 @@ export const concurrentUploadFiles = async (files, directoryMap, options = {}) =
         const checkComplete = setInterval(() => {
             if (completed === total) {
                 clearInterval(checkComplete)
-                resolve()
+                
+                // 计算总上传时间
+                const totalUploadEndTime = Date.now()
+                const totalElapsedTime = totalUploadEndTime - totalUploadStartTime
+                
+                // 计算统计信息
+                const totalSize = uploadStats.reduce((sum, stat) => sum + stat.fileSize, 0)
+                const avgFileUploadTime = uploadStats.reduce((sum, stat) => sum + stat.totalUploadTime, 0) / uploadStats.length
+                
+                // 输出汇总信息
+                console.log('========== 文件上传统计信息 ==========');
+                console.log(`总文件数: ${total}`);
+                console.log(`总大小: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+                console.log(`总耗时: ${totalElapsedTime}ms`);
+                console.log(`平均每个文件上传耗时: ${avgFileUploadTime.toFixed(2)}ms`);
+                console.log('大文件上传详情:');
+                
+                // 输出大文件的详细信息
+                uploadStats.filter(stat => stat.totalChunks > 1).forEach(stat => {
+                    console.log(`文件: ${stat.path}`);
+                    console.log(`  大小: ${(stat.fileSize / 1024 / 1024).toFixed(2)}MB`);
+                    console.log(`  分片数: ${stat.totalChunks}`);
+                    console.log(`  总耗时: ${stat.totalUploadTime}ms`);
+                    if (stat.avgChunkUploadTime) {
+                        console.log(`  平均分片上传耗时: ${stat.avgChunkUploadTime.toFixed(2)}ms`);
+                    }
+                });
+                console.log('=======================================');
+                
+                resolve({
+                    success: true,
+                    stats: {
+                        totalFiles: total,
+                        totalSize,
+                        totalElapsedTime,
+                        avgFileUploadTime,
+                        fileStats: uploadStats
+                    }
+                })
             }
         }, 100)
     })

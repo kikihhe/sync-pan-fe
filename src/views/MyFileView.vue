@@ -354,6 +354,7 @@ import {
   Download,
   HelpCircle,
   GitBranch } from "lucide-vue-next";
+import { Base64 } from 'js-base64';
 import { format } from "date-fns";
 import { menuService } from "@/api/MenuService.js";
 import { fileService } from "@/api/FileService.js";
@@ -730,8 +731,7 @@ const handleContextMenuAction = (action) => {
   } else if (action === "createFolder") {
     handleCreateFolder();
   } else if (action === "preview" && item) {
-    currentPreviewFile.value = item;
-    showPreviewDialog.value = true;
+    handlePreview(item);
   } else if (action === "download" && item) {
     handleDownload(item); 
   }
@@ -873,11 +873,19 @@ const handleTableClick = () => {
 // 文件预览
 const handlePreview = async (item) => {
   if (item.type === 'file') {
-    showPreviewDialog.value = true;
-    currentPreviewFile.value = {
-      id: item.id,
-      name: item.name
-    };
+    // 使用kkFileView进行文件预览
+    const baseUrl = 'http://127.0.0.1:8080';
+    const fileId = item.id;
+    const fileName = item.name;
+    
+    // 构建文件下载URL
+    const originUrl = `${baseUrl}/file/preview?fileId=${fileId}`;
+    // 添加文件名参数
+    const previewUrl = `${originUrl}&fullfilename=${fileName}`;
+    
+    console.log("previewUrl: ", previewUrl);
+    // 使用Base64编码并打开预览页面
+    window.open(`http://127.0.0.1:8012/onlinePreview?url=${encodeURIComponent(Base64.encode(previewUrl))}`);
   }
 };
 
