@@ -2,7 +2,14 @@
   <div class="settings-view">
     
     <div class="settings-header">
-      <h1 class="settings-title">设置</h1>
+      <div class="header-content">
+        <button type="button" class="btn-back" @click="goToFile">
+          <ArrowLeft :size="16" class="back-icon" />
+          回到首页
+        </button>
+        <br />
+        <h1 class="settings-title">设置</h1>
+      </div>
     </div>
 
     
@@ -37,11 +44,17 @@
   
   <script setup>
 import { ref, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { User, Key } from "lucide-vue-next";
+import { useRoute, useRouter } from "vue-router";
+import { User, Key, ArrowLeft } from "lucide-vue-next";
+
+const router = useRouter();
 
 const route = useRoute();
 const currentTab = ref("account");
+
+const goToFile = () => {
+  router.push({ name: 'file' });
+};
 
 // Update active tab based on route
 watch(
@@ -68,6 +81,34 @@ watch(
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-back:hover {
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.back-icon {
+  margin-right: 2px;
 }
 
 .settings-title {

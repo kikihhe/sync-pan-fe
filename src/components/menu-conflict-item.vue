@@ -1,10 +1,10 @@
 <template>
   <div class="menu-conflict-wrapper">
     <!-- 当前目录项 -->
-    <div :class="['conflict-item', menu.type === 1 ? 'added' : 'deleted']">
+    <div :class="['conflict-item', getTypeClass(menu.type)]">
       <Folder :size="16" class="item-icon" />
       <span class="item-name">{{ menu.menu.menuName }}</span>
-      <span class="conflict-type">{{ menu.type === 1 ? '新增' : '删除' }}</span>
+      <span class="conflict-type">{{ getTypeText(menu.type) }}</span>
       
       <!-- 展开/折叠按钮 -->
       <button v-if="hasContent" class="expand-btn" @click="toggleExpand">
@@ -40,11 +40,11 @@
       <!-- 子文件列表 -->
       <div v-if="hasSubfiles" class="content-section">
         <div v-for="file in menu.subFileList" :key="file.file.id" 
-             :class="['conflict-item', file.type === 1 ? 'added' : 'deleted']">
+             :class="['conflict-item', getTypeClass(file.type)]">
           <File v-if="file.file.fileType" :size="16" class="item-icon" />
           <Folder v-else :size="16" class="item-icon" />
           <span class="item-name">{{ file.file.fileName }}</span>
-          <span class="conflict-type">{{ file.type === 1 ? '新增' : '删除' }}</span>
+          <span class="conflict-type">{{ getTypeText(file.type) }}</span>
           
           <!-- 添加箭头按钮 -->
           <button 
@@ -98,6 +98,26 @@ const hasContent = computed(() => {
 const toggleExpand = () => {
   expanded.value = !expanded.value;
 };
+
+// 根据type获取对应的CSS类名
+const getTypeClass = (type) => {
+  switch(type) {
+    case 1: return 'added';      // 新增 - 绿色
+    case 2: return 'deleted';    // 删除 - 蓝色  
+    case 3: return 'modified';   // 修改 - 黄色
+    default: return 'added';
+  }
+};
+
+// 根据type获取对应的文本
+const getTypeText = (type) => {
+  switch(type) {
+    case 1: return '新增';
+    case 2: return '删除';
+    case 3: return '修改';
+    default: return '新增';
+  }
+};
 </script>
 
 <style scoped>
@@ -126,7 +146,20 @@ const toggleExpand = () => {
   margin: 8px 0 4px 0;
   font-weight: 500;
 }
+.conflict-item.added {
+  background-color: #ecfdf5;
+  border: 1px solid #6ee7b7;
+}
 
+.conflict-item.deleted {
+  background-color: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+.conflict-item.modified {
+  background-color: #fef3c7;
+  border: 1px solid #fbbf24;
+}
 .expand-btn {
   background: none;
   border: none;

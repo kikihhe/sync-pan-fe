@@ -599,13 +599,17 @@ onMounted(() => {
 
 .header-item.delete-time {
   width: 180px;
+  display: flex;
+  align-items: center;
+  /* justify-content: center; */
   flex-shrink: 0;
 }
 
 .header-item.actions {
   width: 180px;
   flex-shrink: 0;
-  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 /* 加载中状态 */
@@ -723,7 +727,7 @@ onMounted(() => {
   width: 180px;
   flex-shrink: 0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
 }
 

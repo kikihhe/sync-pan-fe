@@ -86,12 +86,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref , onMounted} from 'vue'
 import { useRouter } from 'vue-router'
 import httpClient from '../utils/ajax'
 import BaseModal from '../components/common/BaseModal.vue'
 import { ElMessage } from 'element-plus'
-
+import Cookies from 'js-cookie'
 const username = ref('')
 const password = ref('')
 const remember = ref(false)
@@ -105,14 +105,49 @@ const togglePasswordVisibility = () => {
 
 import { userService } from '@/api/UserService.js'
 
+onMounted(() => {
+  // 从cookie中获取保存的用户名
+  const savedUsername = Cookies.get('rememberedUsername')
+  const rememberedPassword = Cookies.get('rememberedPassword')
+  if (savedUsername) {
+    username.value = savedUsername
+    password.value = rememberedPassword
+    remember.value = true
+  }
+})
+
 const router = useRouter()
 
 const handleLogin = async () => {
   try {
-    const res = await userService.login(username.value, password.value)
+    // 修改登录请求，传递remember参数
+    const res = await userService.login(username.value, password.value, remember.value)
+    
     if (res.code === 200) {
       ElMessage.success('登录成功')
+      
       localStorage.setItem('token', res.data)
+      
+      // 如果选择了"记住我"，将用户名保存到cookie中
+      if (remember.value) {
+        // 设置cookie，有效期30天
+        Cookies.set('rememberedUsername', username.value, { expires: 30 })
+        Cookies.set('rememberedPassword', password.value, { expires: 30 })
+      } else {
+        // 如果没有选择"记住我"，删除之前可能存在的cookie
+        Cookies.remove('rememberedUsername')
+      }
+      
+      // 获取用户信息
+      try {
+        const userRes = await userService.getCurrentUser()
+        if (userRes.code === 200) {
+          localStorage.setItem('currentUser', JSON.stringify(userRes.data))
+        }
+      } catch (userError) {
+        console.error('获取用户信息失败:', userError)
+      }
+      
       router.push('/home')
     } else {
       ElMessage.error(res.message || '登录失败')

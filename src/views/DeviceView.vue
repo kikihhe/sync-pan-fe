@@ -65,7 +65,11 @@
                 :value="device.id"
               />
             </td>
-            <td>{{ device.name }}</td>
+            <td>
+              <div class="name-cell">
+                {{ device.name }}
+              </div>
+            </td>
             <td>
               <span
                 class="status-badge"
@@ -87,8 +91,11 @@
                 }}
               </span>
             </td>
-            <td class="secret-key">
-              <span>{{ maskSecretKey(device.secretKey) }}</span>
+            <td>
+              <div class="name-cell">
+                <span>{{ maskSecretKey(device.secretKey) }}</span>
+              </div>
+              
             </td>
             <td>{{ formatDate(device.lastSyncTime) }}</td>
             <td class="actions-cell">
@@ -727,6 +734,11 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.name-cell {
+  display: flex;
+  align-items: center;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -810,11 +822,12 @@ onUnmounted(() => {
 /* 分页样式 */
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 12px;
   background-color: white;
   border-radius: 4px;
+  gap: 20px;
 }
 
 .pagination-info {

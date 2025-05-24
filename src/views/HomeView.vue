@@ -50,7 +50,7 @@
         <div class="user-info">
           <div class="user-avatar" @click="toggleUserMenu">
             <img 
-              :src="userAvatar || defaultAvatar" 
+              :src="avatarUrl || defaultAvatar" 
               alt="User avatar"
             />
           </div>
@@ -60,10 +60,10 @@
               <strong>{{ username }}</strong>
             </div>
             <div class="user-menu-items">
-              <button class="menu-item" @click="handleProfile">
+              <!-- <button class="menu-item" @click="handleProfile">
                 <User class="menu-icon" />
                 个人信息
-              </button>
+              </button> -->
               <button class="menu-item" @click="handleSettings">
                 <Settings class="menu-icon" />
                 设置
@@ -83,11 +83,33 @@
       </main>
     </div>
   </div>
+  
+  <!-- 头像预览对话框 -->
+  <div v-if="showAvatarPreview" class="avatar-preview-modal">
+    <div class="avatar-preview-content">
+      <div class="avatar-preview-header">
+        <h3>用户头像</h3>
+        <button class="close-btn" @click="closeAvatarPreview">&times;</button>
+      </div>
+      <div class="avatar-preview-body">
+        <img :src="avatarUrl || defaultAvatar" alt="用户头像" class="avatar-preview-img" />
+      </div>
+      <div class="avatar-preview-footer">
+        <label class="upload-avatar-btn">
+          <input type="file" accept="image/*" @change="uploadNewAvatar" style="display: none" />
+          修改头像
+        </label>
+        <button class="cancel-btn" @click="closeAvatarPreview">取消</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { userService } from '@/api/UserService.js'
+import { ElMessage } from 'element-plus'
 
 import defaultAvatar from '@/assets/image/default-avatar.svg';
 import { 
@@ -139,11 +161,44 @@ const currentTitle = computed(() => {
 
 // 用户信息相关
 const isUserMenuVisible = ref(false)
-const username = ref('Admin') // 这里应该从用户状态获取
-const userAvatar = ref('') // 这里应该从用户状态获取
+const username = ref('Admin')
+const userAvatar = ref('')
+const avatarUrl = ref('')
+const showAvatarPreview = ref(false)
+
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const res = await userService.getCurrentUser()
+    if (res.code === 200) {
+      // 将完整的用户信息存储到LocalStorage
+      localStorage.setItem('currentUser', JSON.stringify(res.data))
+      
+      // 更新UI显示
+      username.value = res.data.username
+      if (res.data.avatar) {
+        userAvatar.value = res.data.avatar
+        avatarUrl.value = res.data.avatar
+      }
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
+// 页面加载时获取用户信息
+onMounted(() => {
+  fetchUserInfo()
+  document.addEventListener('click', closeUserMenu)
+})
 
 const toggleUserMenu = () => {
   isUserMenuVisible.value = !isUserMenuVisible.value
+}
+
+// 显示头像预览
+const showAvatarPreviewDialog = () => {
+  showAvatarPreview.value = true
 }
 
 // 用户菜单操作
@@ -170,11 +225,33 @@ const closeUserMenu = (e) => {
   }
 }
 
-// 监听点击事件
-import { onMounted } from 'vue'
-onMounted(() => {
-  document.addEventListener('click', closeUserMenu)
-})
+// 头像预览对话框
+const closeAvatarPreview = () => {
+  showAvatarPreview.value = false
+}
+
+// 上传头像
+const uploadNewAvatar = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  try {
+    const res = await userService.uploadAvatar(file)
+    if (res.code === 200) {
+      ElMessage.success('头像上传成功')
+      userAvatar.value = res.data.avatar
+      avatarUrl.value = `/file/preview?fileId=${res.data.avatar}`
+      closeAvatarPreview()
+    } else {
+      ElMessage.error(res.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('上传头像失败:', error)
+    ElMessage.error('上传头像失败')
+  }
+}
+
+// 监听点击事件已在上面的onMounted中处理
 
 onUnmounted(() => {
   document.removeEventListener('click', closeUserMenu)
@@ -434,6 +511,104 @@ onUnmounted(() => {
   .main-container {
     margin-left: 0;
   }
+}
+
+/* 头像预览对话框样式 */
+.avatar-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.avatar-preview-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.avatar-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.avatar-preview-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1e293b;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.avatar-preview-body {
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-preview-img {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+.avatar-preview-footer {
+  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.upload-avatar-btn {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.upload-avatar-btn:hover {
+  background-color: #2563eb;
+}
+
+.cancel-btn {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: #f1f5f9;
+  color: #475569;
 }
 </style>
 

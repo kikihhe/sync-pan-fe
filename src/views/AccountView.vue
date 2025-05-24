@@ -5,34 +5,36 @@
     <form @submit.prevent="handleSubmit" class="settings-form">
       <!-- Profile Picture -->
       <div class="form-section">
-        <div class="section-header">
+        <!-- <div class="section-header">
           <h3>头像</h3>
           <p class="section-description">这将显示在你的个人资料和评论中</p>
-        </div>
+        </div> -->
         <div class="avatar-section">
-          <img
-            :src="userAvatar || '/placeholder.svg'"
+          <!-- <img
+            :src="avatarUrl || '@/assets/images/default-avatar.png'"
             alt="用户头像"
             class="avatar-preview"
-          />
-          <div class="avatar-actions">
-            <button
+            @click="handleUploadAvatar"
+            style="cursor: pointer;"
+          /> -->
+          <!-- <div class="avatar-actions"> -->
+            <!-- <button
               type="button"
               class="btn-secondary"
               @click="handleUploadAvatar"
             >
               <Upload :size="16" />
               更换头像
-            </button>
-            <button
+            </button> -->
+            <!-- <button
               type="button"
               class="btn-danger"
               @click="handleRemoveAvatar"
               :disabled="!userAvatar"
             >
               删除
-            </button>
-          </div>
+            </button> -->
+          <!-- </div> -->
         </div>
       </div>
 
@@ -111,10 +113,13 @@
 </template>
   
   <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { Upload } from "lucide-vue-next";
+import { userService } from "@/api/UserService.js";
+import { ElMessage } from "element-plus";
 
 const userAvatar = ref(null);
+const avatarUrl = ref(null);
 const formData = ref({
   name: "",
   email: "user@example.com",
@@ -131,12 +136,91 @@ const isFormChanged = computed(() => {
   return JSON.stringify(formData.value) !== JSON.stringify(originalFormData);
 });
 
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    // 首先尝试从LocalStorage获取用户信息
+    const storedUser = localStorage.getItem('currentUser')
+    if (storedUser) {
+      const userData = JSON.parse(storedUser)
+      
+      // 使用localStorage中的用户数据
+      formData.value.name = userData.username
+      formData.value.email = userData.username + "@example.com" // 示例邮箱
+      
+      if (userData.avatar) {
+        userAvatar.value = userData.avatar
+        avatarUrl.value = userData.avatar
+      }
+      
+      // 更新原始表单数据，用于检测表单是否有变化
+      Object.assign(originalFormData, {
+        name: formData.value.name,
+        email: formData.value.email,
+        bio: formData.value.bio
+      })
+      
+      return // 如果从LocalStorage获取到了数据，就不需要再请求接口
+    }
+    
+    // 如果LocalStorage中没有数据，再从接口获取
+    const res = await userService.getCurrentUser();
+    if (res.code === 200) {
+      // 将完整的用户信息存储到LocalStorage
+      localStorage.setItem('currentUser', JSON.stringify(res.data))
+      
+      formData.value.name = res.data.username;
+      formData.value.email = res.data.username + "@example.com"; // 示例邮箱
+      if (res.data.avatar) {
+        userAvatar.value = res.data.avatar;
+        avatarUrl.value = res.data.avatar;
+      }
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error);
+  }
+};
+
+// 页面加载时获取用户信息
+onMounted(() => {
+  fetchUserInfo();
+});
+
 const handleUploadAvatar = () => {
-  // 实现头像上传逻辑
+  // 创建文件选择器
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+  
+  fileInput.onchange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+      const res = await userService.uploadAvatar(file);
+      if (res.code === 200) {
+        ElMessage.success('头像上传成功');
+        userAvatar.value = res.data.avatar;
+        avatarUrl.value = `/file/preview?fileId=${res.data.avatar}`;
+      } else {
+        ElMessage.error(res.message || '上传失败');
+      }
+    } catch (error) {
+      console.error('上传头像失败:', error);
+      ElMessage.error('上传头像失败');
+    } finally {
+      document.body.removeChild(fileInput);
+    }
+  };
+  
+  document.body.appendChild(fileInput);
+  fileInput.click();
 };
 
 const handleRemoveAvatar = () => {
   userAvatar.value = null;
+  avatarUrl.value = null;
 };
 
 const handleChangeEmail = () => {
