@@ -476,6 +476,7 @@ const handleMerge = async () => {
           identifier: item.item.file.identifier,
           realPath: item.item.file.realPath,
           displayPath: item.item.file.displayPath,
+          boundMenuId: item.item.file.boundMenuId,
           source: 3 // Mark as merged
         });
       } else if (item.itemType === 'menu') {
@@ -488,6 +489,7 @@ const handleMerge = async () => {
           displayPath: item.item.menu.displayPath,
           owner: item.item.menu.owner,
           bound: item.item.menu.bound,
+          boundMenuId: item.item.menu.boundMenuId,
           source: 3 // Mark as merged
         });
       }
