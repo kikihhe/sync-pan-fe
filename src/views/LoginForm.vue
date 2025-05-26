@@ -87,7 +87,7 @@
 
 <script setup>
 import { ref , onMounted} from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import httpClient from '../utils/ajax'
 import BaseModal from '../components/common/BaseModal.vue'
 import { ElMessage } from 'element-plus'
@@ -105,18 +105,27 @@ const togglePasswordVisibility = () => {
 
 import { userService } from '@/api/UserService.js'
 
+const router = useRouter()
+const route = useRoute()
+
 onMounted(() => {
-  // 从cookie中获取保存的用户名
-  const savedUsername = Cookies.get('rememberedUsername')
-  const rememberedPassword = Cookies.get('rememberedPassword')
-  if (savedUsername) {
-    username.value = savedUsername
-    password.value = rememberedPassword
+  // 优先从URL查询参数中获取用户名和密码（从注册页面跳转过来）
+  if (route.query.username && route.query.password) {
+    username.value = route.query.username
+    password.value = route.query.password
+    // 自动勾选记住我选项
     remember.value = true
+  } else {
+    // 如果URL中没有参数，再从cookie中获取保存的用户名
+    const savedUsername = Cookies.get('rememberedUsername')
+    const rememberedPassword = Cookies.get('rememberedPassword')
+    if (savedUsername) {
+      username.value = savedUsername
+      password.value = rememberedPassword
+      remember.value = true
+    }
   }
 })
-
-const router = useRouter()
 
 const handleLogin = async () => {
   try {

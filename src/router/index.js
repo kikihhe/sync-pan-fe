@@ -102,20 +102,21 @@ const router = createRouter({
     }
   ],
 })
-
 // 路由白名单（不需要登录验证的路径）
 const whiteList = ['/portal', '/portal/login', '/portal/register']
+
 // 访问页面时需要判断登录状态
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   
-  // 判断是否在登录页
-  const isLoginPage = to.path.startsWith('/portal')
-  
+  // 首先检查是否在白名单中，如果在白名单中直接放行
   if (whiteList.includes(to.path)) {
     return next()
   }
-
+  
+  // 判断是否在登录页
+  const isLoginPage = to.path.startsWith('/portal')
+  
   if (!token) {
     // 未登录且不在白名单，跳转登录页
     next('/portal')
@@ -128,5 +129,4 @@ router.beforeEach((to, from, next) => {
     }
   }
 })
-
 export default router

@@ -22,8 +22,18 @@ export const uploadAvatar = async (file) => {
   })
 }
 
+export const sendVerifyCode = async (email) => {
+  return await httpClient.post(`/user/sendVerifyCode?email=${email}`)
+}
+
+export const register = async (user, code) => {
+  return await httpClient.post(`/user/register?code=${code}`, user)
+}
+
 export const userService = {
   login,
   getCurrentUser,
-  uploadAvatar
+  uploadAvatar,
+  sendVerifyCode,
+  register
 }

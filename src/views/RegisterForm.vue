@@ -38,6 +38,29 @@
       </div>
       
       <div class="form-group">
+        <label for="register-verify-code">验证码</label>
+        <div class="input-container verify-code-container">
+          <span class="input-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </span>
+          <input 
+            id="register-verify-code" 
+            v-model="verifyCode" 
+            type="text" 
+            placeholder="请输入验证码"
+          />
+          <button 
+            type="button" 
+            class="verify-code-button"
+            @click="handleSendVerifyCode"
+            :disabled="sendCodeDisabled || !email"
+          >
+            {{ sendCodeButtonText }}
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
         <label for="register-password">密码</label>
         <div class="input-container">
           <span class="input-icon">
@@ -104,14 +127,22 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { userService, sendVerifyCode, register } from '@/api/UserService.js'
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const verifyCode = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const agreeTerms = ref(false)
+const sendCodeDisabled = ref(false)
+const countdown = ref(0)
+const sendCodeButtonText = ref('发送验证码')
+
+// 倒计时定时器
+let timer = null
 
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
@@ -137,6 +168,51 @@ const passwordStrength = computed(() => {
 
 const router = useRouter()
 
+// 发送验证码方法
+const handleSendVerifyCode = async () => {
+  if (!email.value) {
+    ElMessage.warning('请输入电子邮箱')
+    return
+  }
+  
+  // 验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    ElMessage.warning('请输入有效的电子邮箱')
+    return
+  }
+  
+  try {
+    sendCodeDisabled.value = true
+    const res = await sendVerifyCode(email.value)
+    
+    if (res.code === 200) {
+      ElMessage.success('验证码已发送，请查收邮件')
+      // 开始倒计时
+      countdown.value = 60
+      sendCodeButtonText.value = `${countdown.value}秒后重发`
+      
+      timer = setInterval(() => {
+        countdown.value--
+        sendCodeButtonText.value = `${countdown.value}秒后重发`
+        
+        if (countdown.value <= 0) {
+          clearInterval(timer)
+          sendCodeDisabled.value = false
+          sendCodeButtonText.value = '发送验证码'
+        }
+      }, 1000)
+    } else {
+      ElMessage.error(res.message || '验证码发送失败')
+      sendCodeDisabled.value = false
+    }
+  } catch (error) {
+    console.error('发送验证码出错:', error)
+    ElMessage.error('验证码发送失败: ' + error.message)
+    sendCodeDisabled.value = false
+  }
+}
+
 // 注册方法
 const handleRegister = async () => {
   // 表单验证
@@ -147,6 +223,11 @@ const handleRegister = async () => {
   
   if (!email.value) {
     ElMessage.warning('请输入电子邮箱')
+    return
+  }
+  
+  if (!verifyCode.value) {
+    ElMessage.warning('请输入验证码')
     return
   }
   
@@ -166,15 +247,26 @@ const handleRegister = async () => {
   }
   
   try {
-    // 这里应该调用注册API，但目前代码中没有提供，所以模拟一个
-    // const res = await userService.register(username.value, email.value, password.value)
-    // 模拟成功响应
-    const res = { code: 200, message: '注册成功', data: null }
+    // 调用注册API
+    const user = {
+      username: username.value,
+      email: email.value,
+      password: password.value
+    }
+    
+    const res = await register(user, verifyCode.value)
     
     if (res.code === 200) {
       ElMessage.success('注册成功')
-      // 注册成功后跳转到登录页
-      router.push('/login')
+      // 注册成功后跳转到登录页，并携带用户名和密码
+      router.push({
+        name: 'portal',
+        // path: '/portal/login',
+        query: {
+          username: username.value,
+          password: password.value
+        }
+      })
     } else {
       ElMessage.error(res.message || '注册失败')
     }
@@ -450,6 +542,34 @@ const handleRegister = async () => {
 
 .portal-form {
   animation: fadeIn 0.3s ease-out;
+}
+
+.verify-code-container {
+  display: flex;
+  align-items: center;
+}
+
+.verify-code-button {
+  position: absolute;
+  right: 0.5rem;
+  background-color: var(--color-primary, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.verify-code-button:hover {
+  background-color: var(--color-primary-dark, #2563eb);
+}
+
+.verify-code-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 </style>
 
