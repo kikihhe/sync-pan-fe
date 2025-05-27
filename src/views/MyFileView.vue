@@ -242,7 +242,7 @@
       :parent-menu-id="currentMenu?.id"
       :current-menu="currentMenu"
       @close="showFileUploadDialog = false"
-      @file-upload-complete="handleUploadComplete"
+      @upload-complete="handleUploadComplete"
     />
     <!-- 上传文件夹 -->
     <FolderUploadDialog
@@ -597,7 +597,10 @@ const handleUploadFolder = () => {
 
 // 不管是文件/目录，上传完成后都要刷新数据
 const handleUploadComplete = () => {
-  loadData();
+  // 添加延迟，确保后端有足够时间处理上传的文件
+  setTimeout(() => {
+    loadData();
+  }, 1000);
 };
 
 // 重命名处理

@@ -93,6 +93,15 @@ const mergeChunks = async (params) => {
     return await httpClient.post('/file/mergeChunk', params)
 }
 
+// 检查文件名是否重复
+export const checkNameDuplicate = async (menuId, fileName) => {
+    // 处理 menuId 为 null 的情况，将其转换为 0
+    const safeMenuId = menuId === null ? 0 : menuId;
+    // 对文件名进行 URL 编码以支持中文
+    const encodedFileName = encodeURIComponent(fileName);
+    return await httpClient.get(`/file/checkNameDuplicate?menuId=${safeMenuId}&fileName=${encodedFileName}`)
+}
+
 // 上传单个文件，根据文件大小自动选择普通上传或分片上传
 export const uploadSingleFile = async (file, menuId, onProgress) => {
     // 计算文件MD5
@@ -153,6 +162,25 @@ export const uploadSingleFile = async (file, menuId, onProgress) => {
 
 // 上传大文件（分片上传）
 const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
+    // 新增大文件存在性检查
+    const checkRes = await httpClient.post('/file/checkLargeFileExists', {
+        identifier: fileHash,
+        chunkIdentifier: '',
+        chunkName: '',
+        fileName: file.name,
+        fileType: file.name.split('.').pop() || '',
+        chunkNumber: 0,
+        currentChunkSize: 0,
+        totalChunks: 0,
+        totalSize: file.size,
+        menuId: menuId || ''
+    });
+
+    if (checkRes.code === 200) {
+        console.log(`文件 ${file.name} 已存在，跳过上传`);
+        return checkRes;
+    }
+
     // 将文件分割成多个分片
     const chunks = createFileChunks(file)
     const totalChunks = chunks.length
@@ -185,6 +213,7 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
                 identifier: fileHash,
                 chunkIdentifier: `${fileHash}_${chunkIndex}`,
                 chunkName: chunkName,
+                fileName: file.name,
                 fileType: file.name.split('.').pop() || '',
                 chunkNumber: chunkIndex,
                 currentChunkSize: chunk.size,
@@ -217,7 +246,10 @@ const uploadLargeFile = async (file, fileHash, menuId, onProgress) => {
                         uploadTime: chunkUploadTime
                     })
                     console.log(`分片 ${chunkIndex} 上传完成，大小: ${(chunk.size / 1024 / 1024).toFixed(2)}MB，耗时: ${chunkUploadTime}ms`)
-                    
+                    if (res.code === 10000) {
+                        console.log(`该大文件可以使用秒传功能，不必上传文件`)
+                        return res
+                    }
                     // 如果所有分片都已上传，则合并分片
                     if (allChunksUploaded) {
                         // 合并分片

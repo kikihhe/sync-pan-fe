@@ -144,7 +144,7 @@
                   <h5>2. 运行客户端</h5>
                   <div class="code-block">
                     <pre><code>
-java -jar sync-client.jar \
+java -jar client-1.0-SNAPSHOT.jar \
   --device-key={{ deviceInfo.registeredDeviceKey || deviceInfo.deviceKey }} \
   --secret=YOUR_SECRET_VALUE
                     </code></pre>
@@ -152,7 +152,7 @@ java -jar sync-client.jar \
                       class="copy-btn"
                       @click="
                         copyCommand(
-                          `java -jar sync-client.jar --device-key=${deviceInfo.deviceKey} --secret=YOUR_SECRET_VALUE`
+                          `java -jar client-1.0-SNAPSHOT.jar --device-key=${deviceInfo.deviceKey} --secret=YOUR_SECRET_VALUE`
                         )
                       "
                     >
@@ -281,12 +281,12 @@ const canProceed = computed(() => {
 const downloadCommand = computed(() => {
   // 检测用户平台，这里简单使用navigator.platform
   const isWindows = navigator.platform.indexOf("Win") > -1;
-  const downloadUrl = "https://xiaohetypora.oss-cn-shanghai.aliyuncs.com/client-1.0-SNAPSHOT.jar"; // 客户端下载链接
+  const downloadUrl = "https://typorehwf.oss-cn-chengdu.aliyuncs.com/client-1.0-SNAPSHOT.jar"; // 客户端下载链接
 
   if (isWindows) {
-    return `curl -o sync-client.jar ${downloadUrl}`;
+    return `curl -o client-1.0-SNAPSHOT.jar ${downloadUrl}`;
   } else {
-    return `wget -O sync-client.jar ${downloadUrl}`;
+    return `wget -O client-1.0-SNAPSHOT.jar ${downloadUrl}`;
   }
 });
 
@@ -357,10 +357,10 @@ const copyCommand = (command) => {
 };
 
 const downloadClient = () => {
-  const downloadUrl = "https://xiaohetypora.oss-cn-shanghai.aliyuncs.com/client-1.0-SNAPSHOT.jar";
+  const downloadUrl = "https://typorehwf.oss-cn-chengdu.aliyuncs.com/client-1.0-SNAPSHOT.jar";
   const downloadLink = document.createElement('a');
   downloadLink.href = downloadUrl;
-  downloadLink.download = "sync-client.jar";
+  downloadLink.download = "client-1.0-SNAPSHOT.jar";
   document.body.appendChild(downloadLink);
   downloadLink.click();
   document.body.removeChild(downloadLink);
